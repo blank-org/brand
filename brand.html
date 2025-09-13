@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<title>Brand Colours</title>
+		<link rel="stylesheet" href="styles.css">
+	</head>
+	<body>
+		<!-- wrap content so it can grow and push footer down on short pages -->
+		<main class="content">
+			<div>
+				<h1>Brand colours</h1>
+				<!-- <p class="note">A simple reference table for primary and secondary brand colours. Use the Copy button to copy the hex code.</p> -->
+				<h3></h3>
+			</div>
+			<table aria-label="Brand colours table">
+				<thead>
+					<tr>
+						<th>Serial</th>
+						<th>Code</th>
+						<th>Colour</th>
+						<th>Remark</th>
+					</tr>
+				</thead>
+				<tbody>
+					<!-- rows are generated dynamically from data.json.js by script.js -->
+				</tbody>
+			</table>
+		</main>
+
+		<!-- footer that stays at the bottom when content is short -->
+		<footer class="site-footer" role="contentinfo">Avyaan Tech</footer>
+		<script src="data.json.js"></script>
+		<script src="script.js"></script>
+	</body>
+</html>

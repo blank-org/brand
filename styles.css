@@ -1,0 +1,157 @@
+/* Externalized styles from Brand.html */
+:root {
+	font-family: Arial, Helvetica, sans-serif;
+	color: #222
+}
+
+/* make the page a column flex container so the footer can stick to the bottom */
+html,
+body {
+	height: 100%
+}
+
+body {
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	min-height: 100vh;
+	padding: 24px; /* changed from margin to padding to avoid adding extra height beyond the viewport */
+	background: #f7f7f8
+}
+
+/* ensure padding is included in element size calculations so min-height behaves as expected */
+*, *::before, *::after {
+	box-sizing: border-box;
+}
+
+/* main content should take remaining space to push footer down on short pages */
+.content {
+	flex: 1
+}
+
+h1 {
+	float: left;
+	margin: 0 0 18px;
+	font-weight: 600
+}
+
+h3 {
+	float: right;
+	font-weight: 200;
+}
+
+.note {
+	margin-bottom: 12px;
+	color: #444
+}
+
+table {
+	width: 100%;
+	border-collapse: collapse;
+	background: #fff;
+	border-radius: 8px;
+	overflow: hidden;
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+	max-width: 1000px;
+	margin: auto;
+	clear: both;
+}
+
+thead {
+	background: linear-gradient(180deg, #f4f6f8, #eef2f5)
+}
+
+th,
+td {
+	padding: 12px 14px;
+	text-align: left;
+	border-bottom: 1px solid #eef0f2
+}
+
+th {
+	font-size: 13px;
+	color: #556;
+	letter-spacing: 0.02em
+}
+
+td.code {
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, 'Roboto Mono', 'Courier New', monospace;
+	color: #0b3954
+}
+
+.swatch {
+	display: flex;
+	align-items: center;
+	gap: 12px
+}
+
+.color-box {
+	width: 56px;
+	height: 36px;
+	border-radius: 6px;
+	border: 1px solid rgba(0, 0, 0, 0.06);
+	box-shadow: inset 0 -6px 14px rgba(0, 0, 0, 0.03)
+}
+
+.color-box[role="button"] {
+	cursor: pointer
+}
+
+.color-box:focus {
+	outline: 3px solid rgba(0, 100, 172, 0.18)
+}
+
+.color-label {
+	font-size: 14px;
+	color: #111
+}
+
+.remark {
+	color: #666;
+	font-size: 13px
+}
+
+button.copy-btn {
+	background: #0064ac;
+	color: #fff;
+	border: 0;
+	padding: 8px 10px;
+	border-radius: 6px;
+	cursor: pointer;
+	font-weight: 600
+}
+
+button.copy-btn.secondary {
+	background: #4d4d4d
+}
+
+.copied {
+	background: #2a8f49
+}
+
+/* footer */
+footer.site-footer {
+	margin-top: 12px;
+	text-align: center;
+	color: #666;
+	padding: 12px 0;
+	font-size: 13px
+}
+
+@media (max-width:640px) {
+
+	th:nth-child(1),
+	td:nth-child(1) {
+		width: 48px
+	}
+
+	.color-box {
+		width: 44px;
+		height: 28px
+	}
+
+	th,
+	td {
+		padding: 10px
+	}
+}

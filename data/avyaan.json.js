@@ -21,7 +21,7 @@ window.BRAND = {
 		},
 		{
 			id: 3,
-			name: 'gray',
+			name: 'Gray',
 			hex: '#808080',
 			remark: 'Gray tone',
 			usage: 'Used for backgrounds and borders'

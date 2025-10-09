@@ -3,43 +3,42 @@
 // If you prefer an ES module, rename to data.mjs and import from script.js.
 // Top-level object with metadata and colours
 window.BRAND = {
-	title: 'Wolo',
+	title: 'Total Ingredients',
 	colours: [
 		{
 			id: 1,
 			name: 'Primary',
-			hex: '#049cfa',
+			hex: '#f78444',
 			remark: 'Primary brand colour',
 			usage: 'Used for primary actions and links'
 		},
 		{
 			id: 2,
 			name: 'Secondary',
-			hex: '#4d4d4d',
+			hex: '#ffd06c',
 			remark: 'Secondary / neutral tone',
-			usage: 'Neutral / UI elements'
+			usage: 'Accent / UI elements'
 		},
 		{
 			id: 3,
-			name: 'Gray',
-			hex: '#d9d9d9',
+			name: 'Bright Red',
+			hex: '#de3619',
 			remark: 'Gray tone',
 			usage: 'Used for backgrounds and borders'
-		}
-	],
-	fonts: [
-		{
-			name: 'Primary Header',
-			family: 'Arial, sans-serif',
-			weight: 'bold',
-			color: 'Primary',
-			sampleText: 'The quick brown fox jumps over the lazy dog'
 		},
 		{
-			name: 'Body Text',
-			family: 'Georgia, serif',
-			weight: 'normal',
-			color: '#333333'
+			id: 4,
+			name: 'Avocado Green',
+			hex: '#c7d1c6',
+			remark: 'Gray tone',
+			usage: 'Used for backgrounds and borders'
+		},
+		{
+			id: 4,
+			name: 'Gray',
+			hex: '#ccc',
+			remark: 'Gray tone',
+			usage: 'Used for backgrounds and borders'
 		}
 	]
 };

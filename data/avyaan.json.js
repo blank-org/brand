@@ -21,6 +21,13 @@ window.BRAND = {
 		},
 		{
 			id: 3,
+			name: 'Light Gray',
+			hex: '#999999',
+			remark: 'Light gray tone',
+			usage: 'Used for backgrounds and borders'
+		},
+		{
+			id: 3,
 			name: 'Gray',
 			hex: '#808080',
 			remark: 'Gray tone',

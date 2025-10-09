@@ -10,6 +10,12 @@
 	</top>
 	<bottom>
 		<left>
+			<section id="logo-library" label="Logo Library" selector="#logo-files">
+				<repeatable id="logo-card" label="Logo Card" selector="#logo-files-list .logo-file">
+					<element id="logo-preview" label="Logo Preview" selector=".logo-file-preview"/>
+					<element id="logo-metadata" label="Logo Metadata" selector=".logo-file-meta"/>
+				</repeatable>
+			</section>
 			<section id="colour-palette" label="Colour Palette" selector="table[aria-label='Brand colours table']">
 				<repeatable id="colour-row" label="Colour Row" selector="table[aria-label='Brand colours table'] tbody tr"/>
 			</section>

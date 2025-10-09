@@ -10,6 +10,8 @@
 		const footer = document.getElementById('footer-brand');
 		const tbody = document.querySelector('table tbody');
 		const select = document.getElementById('brand-select');
+		const logoSection = document.getElementById('logo-files');
+		const logoList = document.getElementById('logo-files-list');
 		let brandSelectMenu = null;
 		const fontSelectMenus = [];
 
@@ -56,7 +58,8 @@
 			const data = brand.colours || [];
 			if (!tbody) return;
 			const table = tbody.closest('table');
-			const showSerial = brand.showSerialNumbers !== false;
+			const showSerial = brand.showSerialNumbers === true;
+			renderLogoFiles(brand);
 			if (table) {
 				table.classList.toggle('hide-serial', !showSerial);
 			}
@@ -73,6 +76,64 @@
 			});
 
 			renderFonts(brand);
+		}
+
+		function renderLogoFiles(brand) {
+			if (!logoSection || !logoList) return;
+			const logos = Array.isArray(brand.logos) ? brand.logos : [];
+			logoList.innerHTML = '';
+			if (!logos.length) {
+				logoSection.classList.add('is-hidden');
+				return;
+			}
+			logoSection.classList.remove('is-hidden');
+			logos.forEach((logo, index) => {
+				if (!logo || !logo.file) return;
+				const link = document.createElement('a');
+				link.className = 'logo-file';
+				link.href = 'data'+'/'+logo.file;
+				link.setAttribute('role', 'listitem');
+				link.dataset.logoIndex = String(index);
+				if (logo.download !== false) {
+					link.setAttribute('download', '');
+				}
+				link.target = '_blank';
+				link.rel = 'noopener';
+
+				const preview = document.createElement('img');
+				preview.className = 'logo-file-preview';
+				preview.src = logo.preview || link.href;
+				preview.alt = (logo.name || `Logo ${index + 1}`) + ' preview';
+				preview.loading = 'lazy';
+				link.appendChild(preview);
+
+				const meta = document.createElement('div');
+				meta.className = 'logo-file-meta';
+
+				const name = document.createElement('div');
+				name.className = 'logo-file-name';
+				name.textContent = logo.name || `Logo ${index + 1}`;
+				meta.appendChild(name);
+
+				const detailParts = [];
+				if (logo.usage) detailParts.push(logo.usage);
+				if (logo.variant) detailParts.push(logo.variant);
+				if (logo.background) detailParts.push(logo.background);
+				if (logo.notes) detailParts.push(logo.notes);
+
+				if (detailParts.length) {
+					const detail = document.createElement('div');
+					detail.className = 'logo-file-detail';
+					detail.textContent = detailParts.join(' • ');
+					meta.appendChild(detail);
+				}
+
+				link.appendChild(meta);
+				logoList.appendChild(link);
+			});
+			if (!logoList.children.length) {
+				logoSection.classList.add('is-hidden');
+			}
 		}
 
 		function renderFonts(brand) {

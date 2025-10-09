@@ -11,16 +11,16 @@
 		<!-- wrap content so it can grow and push footer down on short pages -->
 		<main class="content">
 			<div class="header-row">
-				<svg class="logo" role="img" aria-labelledby="logo-title" viewBox="0 0 120 36">
-					<title id="logo-title">Brand</title>
-					<text x="0" y="26" font-family="Georgia, 'Times New Roman', serif" font-size="28" font-style="italic" fill="currentColor">brand</text>
-				</svg>
+				<img class="logo" src="resource/logo.svg" alt="Brand logo" width="120" height="36">
 				<div class="brand-selector">
 					<select id="brand-select" aria-label="Select brand"></select>
 				</div>
 				<div id="preview-toggle"><i class="material-icons">visibility</i></div>
 			</div>
-			<table aria-label="Brand colours table">
+			<section id="logo-files" class="logo-files is-hidden sections" aria-labelledby="logo-files-heading">
+				<div class="logo-file-list" id="logo-files-list" role="list"></div>
+			</section>
+			<table aria-label="Brand colours table" class="sections">
 				<thead>
 					<tr>
 						<th class="serial-column">Serial</th>
@@ -33,7 +33,7 @@
 					<!-- rows are generated dynamically from data.json.js by script.js -->
 				</tbody>
 			</table>
-			<div id="font-samples"></div>
+			<div id="font-samples" class="sections"></div>
 		</main>
 
 		<!-- footer that stays at the bottom when content is short -->

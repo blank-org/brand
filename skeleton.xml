@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<structure>
+	<top>
+		<left>
+			<section id="header" label="Header" selector=".header-row"/>
+		</left>
+		<right>
+			<section id="preview-toggle" label="Preview Toggle" selector="#preview-toggle"/>
+		</right>
+	</top>
+	<bottom>
+		<left>
+			<section id="colour-palette" label="Colour Palette" selector="table[aria-label='Brand colours table']">
+				<repeatable id="colour-row" label="Colour Row" selector="table[aria-label='Brand colours table'] tbody tr"/>
+			</section>
+		</left>
+		<right>
+			<section id="font-gallery" label="Font Gallery" selector="#font-samples">
+				<repeatable id="font-card" label="Font Card" selector="#font-samples .font-card">
+					<section id="font-card-body" label="Card Body" selector=".font-card-body">
+						<element id="font-sample-text" label="Sample Text" selector=".font-sample-text"/>
+						<element id="font-family-name" label="Font Family Display" selector=".font-family-name"/>
+						<element id="font-family-input" label="Font Family Input" selector=".font-family-input"/>
+						<element id="google-font-button" label="Google Font Button" selector=".load-google-font"/>
+					</section>
+					<section id="font-card-content" label="Card Content" selector=".font-card-content">
+						<section id="font-card-footer" label="Card Footer" selector=".font-card-footer">
+							<section id="font-source-column" label="Source Column" selector=".font-source-column">
+								<element id="font-source-toggle-group" label="Source Toggles" selector=".font-source-toggles"/>
+							</section>
+							<section id="font-detail-column" label="Detail Column" selector=".font-detail-column">
+								<element id="font-card-title" label="Font Name" selector=".font-card-title .font-sample-name"/>
+								<element id="color-picker-slot" label="Color Picker Slot" selector=".font-controls .color-picker-slot"/>
+								<element id="colour-select-menu" label="Colour Select Menu" selector=".font-controls .select-custom"/>
+								<element id="font-usage" label="Usage Guidance" selector=".font-usage"/>
+							</section>
+						</section>
+					</section>
+				</repeatable>
+			</section>
+		</right>
+	</bottom>
+</structure>

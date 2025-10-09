@@ -10,6 +10,8 @@
 		const footer = document.getElementById('footer-brand');
 		const tbody = document.querySelector('table tbody');
 		const select = document.getElementById('brand-select');
+		let brandSelectMenu = null;
+		const fontSelectMenus = [];
 
 		const previewToggle = document.getElementById('preview-toggle');
 		if (previewToggle) {
@@ -53,6 +55,11 @@
 			// heading is intentionally left untouched so it's unaffected by selector changes.
 			const data = brand.colours || [];
 			if (!tbody) return;
+			const table = tbody.closest('table');
+			const showSerial = brand.showSerialNumbers !== false;
+			if (table) {
+				table.classList.toggle('hide-serial', !showSerial);
+			}
 			tbody.innerHTML = '';
 			if (typeof window.brandColourRowTemplate !== 'function') {
 				console.error('brandColourRowTemplate component is not available.');
@@ -61,7 +68,7 @@
 
 			data.forEach(item => {
 				const tr = document.createElement('tr');
-				tr.innerHTML = window.brandColourRowTemplate(item);
+				tr.innerHTML = window.brandColourRowTemplate(item, { showSerial });
 				tbody.appendChild(tr);
 			});
 
@@ -73,19 +80,28 @@
 			if (!fontSamples) return;
 
 			const fonts = brand.fonts || [];
+			fontSelectMenus.forEach(menu => {
+				if (menu && typeof menu.destroy === 'function') {
+					menu.destroy();
+				}
+			});
+			fontSelectMenus.length = 0;
+			fontSamples.innerHTML = '';
 			if (fonts.length === 0) {
-				fontSamples.innerHTML = '';
 				return;
 			}
 
-			// let html = '<h2>Fonts</h2>';
-			fontSamples.innerHTML = '<h2>Fonts</h2>';
+			const brandColours = Array.isArray(brand.colours) ? brand.colours : [];
 
 			fonts.forEach((font, index) => {
-				const sampleText = font.sampleText || 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.';
+				const sampleText = font.sampleText || 'Lorem ipsum dolor sit amet, consectetur adipiscing elit';
 				let color = font.color;
-				if (brand.colours && brand.colours.find(c => c.name === color)) {
-					color = brand.colours.find(c => c.name === color).hex;
+				const brandColourMatch = brandColours.find(c => c.name === color);
+				if (brandColourMatch) {
+					color = brandColourMatch.hex;
+				}
+				if (!color) {
+					color = brandColours.length ? brandColours[0].hex : '#1f2937';
 				}
 
 				const fontSampleDiv = document.createElement('div');
@@ -97,17 +113,26 @@
 					fontSampleDiv.innerHTML = window.fontSampleTemplate({ font, sampleText, color });
 				}
 
+				const fontSampleText = fontSampleDiv.querySelector('.font-sample-text');
+				const fontControls = fontSampleDiv.querySelector('.font-controls');
+				const colorPickerSlot = fontSampleDiv.querySelector('.color-picker-slot');
+				if (!fontControls) {
+					fontSamples.appendChild(fontSampleDiv);
+					return;
+				}
+				const fontSourceToggles = fontSampleDiv.querySelectorAll('.font-source-toggle');
+				const loadGoogleFontButton = fontSampleDiv.querySelector('.load-google-font');
+
 				const colorSelect = document.createElement('select');
 				colorSelect.id = `brand-color-select-${index}`;
 				colorSelect.dataset.fontIndex = index;
-				colorSelect.dataset.isColorSelect = true;
 
 				const customOption = document.createElement('option');
 				customOption.value = '';
 				customOption.textContent = 'Custom';
 				colorSelect.appendChild(customOption);
 
-				brand.colours.forEach(c => {
+				brandColours.forEach(c => {
 					const opt = document.createElement('option');
 					opt.value = c.hex;
 					opt.textContent = c.name;
@@ -117,14 +142,62 @@
 					colorSelect.appendChild(opt);
 				});
 
-				const fontControls = fontSampleDiv.querySelector('.font-controls');
+				if (color && colorSelect.value !== color) {
+					const fallbackOption = document.createElement('option');
+					fallbackOption.value = color;
+					fallbackOption.textContent = color;
+					fallbackOption.selected = true;
+					colorSelect.appendChild(fallbackOption);
+				}
+
+				colorSelect.value = color;
+				fontControls.appendChild(colorSelect);
+
+				const colorMenu = createCustomSelect(colorSelect, {
+					formatSelected(option) {
+						if (!option) return 'Custom';
+						if (!option.value) return option.textContent || 'Custom';
+						const wrapper = document.createElement('span');
+						wrapper.classList.add('select-color-summary');
+						const swatch = document.createElement('span');
+						swatch.classList.add('color-circle');
+						swatch.style.backgroundColor = option.value;
+						wrapper.appendChild(swatch);
+						const text = document.createElement('span');
+						text.textContent = option.textContent || option.value;
+						wrapper.appendChild(text);
+						return wrapper;
+					},
+					formatItem(option) {
+						const item = document.createElement('div');
+						item.classList.add('select-option');
+						const label = option.textContent || option.value || 'Custom';
+						if (option.value) {
+							const swatch = document.createElement('span');
+							swatch.classList.add('color-circle');
+							swatch.style.backgroundColor = option.value;
+							item.appendChild(swatch);
+						}
+						const text = document.createElement('span');
+						text.textContent = label;
+						item.appendChild(text);
+						return item;
+					},
+					className: 'brand-select-menu',
+					matchOptionWidth: true,
+					extraWidth: 2
+				});
+				if (colorMenu) {
+					fontSelectMenus.push(colorMenu);
+				}
+
 				const colorPickerContainer = document.createElement('div');
 				colorPickerContainer.classList.add('color-picker-container');
 
-				const colorCircle = document.createElement('span');
-				colorCircle.classList.add('color-circle');
-				colorCircle.style.backgroundColor = color;
-				colorPickerContainer.appendChild(colorCircle);
+				const controlColorCircle = document.createElement('span');
+				controlColorCircle.classList.add('color-circle');
+				controlColorCircle.style.backgroundColor = color;
+				colorPickerContainer.appendChild(controlColorCircle);
 
 				const colorPicker = document.createElement('input');
 				colorPicker.type = 'color';
@@ -133,29 +206,126 @@
 				colorPicker.dataset.fontIndex = index;
 				colorPickerContainer.appendChild(colorPicker);
 
-				fontControls.appendChild(colorPickerContainer);
-				fontControls.appendChild(colorSelect);
+				const colorPickerTarget = colorPickerSlot || fontControls;
+				colorPickerTarget.appendChild(colorPickerContainer);
 
-				createCustomSelect(colorSelect);
+				function applyColorValue(nextColor) {
+					if (!nextColor) return;
+					if (fontSampleText) {
+						fontSampleText.style.color = nextColor;
+					}
+					if (controlColorCircle) {
+						controlColorCircle.style.backgroundColor = nextColor;
+					}
+					if (colorPicker.value !== nextColor) {
+						colorPicker.value = nextColor;
+					}
+				}
 
-				const fontSourceToggles = fontSampleDiv.querySelectorAll('.font-source-toggle');
-				const loadGoogleFontButton = fontSampleDiv.querySelector('.load-google-font');
+				function ensureColorOption(optionValue) {
+					if (!optionValue) return false;
+					const normalizedValue = optionValue.trim();
+					const target = normalizedValue.toLowerCase();
+					const existing = Array.prototype.find.call(colorSelect.options, (opt) => opt.value && opt.value.toLowerCase() === target);
+					if (existing) {
+						existing.selected = true;
+						return false;
+					}
+					const option = document.createElement('option');
+					option.value = normalizedValue;
+					option.textContent = normalizedValue;
+					option.selected = true;
+					colorSelect.appendChild(option);
+					return true;
+				}
 
-				fontSourceToggles.forEach(toggle => {
-					toggle.addEventListener('click', (e) => {
-						fontSourceToggles.forEach(t => t.classList.remove('active'));
-						e.target.classList.add('active');
-						if (e.target.dataset.source === 'google') {
-							loadGoogleFontButton.style.display = 'inline-block';
-						} else {
-							loadGoogleFontButton.style.display = 'none';
-						}
-					});
+				colorSelect.addEventListener('change', () => {
+					const selectedOption = colorSelect.options[colorSelect.selectedIndex];
+					const selectedColor = selectedOption ? selectedOption.value : '';
+					if (!selectedColor) {
+						colorPicker.click();
+						return;
+					}
+					applyColorValue(selectedColor);
+				});
+
+				colorPicker.addEventListener('input', (e) => {
+					const nextColor = e.target.value;
+					if (!nextColor) return;
+					const added = ensureColorOption(nextColor);
+					if (added && colorMenu && typeof colorMenu.refresh === 'function') {
+						colorMenu.refresh();
+					} else if (colorMenu && typeof colorMenu.update === 'function') {
+						colorMenu.update();
+					}
+					colorSelect.value = nextColor;
+					colorSelect.dispatchEvent(new Event('change'));
+				});
+
+				function setGoogleButtonVisibility(shouldShow) {
+					if (!loadGoogleFontButton) return;
+					loadGoogleFontButton.classList.toggle('is-visible', shouldShow);
+				}
+
+				const activeSource = fontSampleDiv.querySelector('.font-source-toggle.active');
+				if (activeSource) {
+					setGoogleButtonVisibility(activeSource.dataset.source === 'google');
+				}
+
+				fontSampleDiv.addEventListener('click', (e) => {
+					const button = e.target.closest('.font-source-toggle');
+					if (!button || !fontSampleDiv.contains(button)) return;
+					e.preventDefault();
+					fontSourceToggles.forEach(t => t.classList.remove('active'));
+					button.classList.add('active');
+					setGoogleButtonVisibility(button.dataset.source === 'google');
 				});
 
 				const fontFamilyName = fontSampleDiv.querySelector('.font-family-name');
 				const fontFamilyInput = fontSampleDiv.querySelector('.font-family-input');
-				const fontSampleText = fontSampleDiv.querySelector('.font-sample-text');
+				const srSyncLabel = loadGoogleFontButton ? loadGoogleFontButton.querySelector('.sr-only') : null;
+				const defaultSyncLabel = srSyncLabel ? srSyncLabel.textContent : (loadGoogleFontButton ? loadGoogleFontButton.getAttribute('aria-label') || 'Load from Google Fonts' : 'Load from Google Fonts');
+				const getNormalizedFontFamily = () => (fontFamilyInput && fontFamilyInput.value ? fontFamilyInput.value.trim() : '');
+				let syncedFontFamilyNormalized = '';
+				let syncButtonState = 'idle';
+
+				const updateSyncButtonLabel = (label) => {
+					if (!loadGoogleFontButton) return;
+					loadGoogleFontButton.setAttribute('aria-label', label);
+					if (srSyncLabel) {
+						srSyncLabel.textContent = label;
+					}
+				};
+
+				const setSyncButtonState = (state) => {
+					if (!loadGoogleFontButton) return;
+					const isIdle = state === 'idle';
+					const isLoading = state === 'loading';
+					const isSynced = state === 'synced';
+					syncButtonState = state;
+					loadGoogleFontButton.disabled = !isIdle;
+					loadGoogleFontButton.setAttribute('aria-disabled', isIdle ? 'false' : 'true');
+					loadGoogleFontButton.classList.toggle('is-loading', isLoading);
+					loadGoogleFontButton.classList.toggle('is-disabled', isSynced);
+					if (isSynced) {
+						updateSyncButtonLabel('Font synced');
+					} else if (isLoading) {
+						updateSyncButtonLabel('Syncing font');
+					} else {
+						updateSyncButtonLabel(defaultSyncLabel);
+					}
+				};
+
+				const refreshSyncButtonState = () => {
+					if (!loadGoogleFontButton) return;
+					if (syncButtonState === 'loading') return;
+					const current = getNormalizedFontFamily();
+					if (syncedFontFamilyNormalized && current && current.toLowerCase() === syncedFontFamilyNormalized) {
+						setSyncButtonState('synced');
+					} else {
+						setSyncButtonState('idle');
+					}
+				};
 
 				fontFamilyName.addEventListener('click', () => {
 					fontFamilyName.style.display = 'none';
@@ -167,8 +337,13 @@
 					fontFamilyName.style.display = 'inline-block';
 					fontFamilyInput.style.display = 'none';
 					fontFamilyName.textContent = fontFamilyInput.value;
-					fontSampleText.style.fontFamily = fontFamilyInput.value;
+					if (fontSampleText) {
+						fontSampleText.style.fontFamily = fontFamilyInput.value;
+					}
+					refreshSyncButtonState();
 				});
+
+				fontFamilyInput.addEventListener('input', refreshSyncButtonState);
 
 				fontFamilyInput.addEventListener('keydown', (e) => {
 					if (e.key === 'Enter') {
@@ -176,141 +351,302 @@
 					}
 				});
 
-				loadGoogleFontButton.addEventListener('click', () => {
-					const fontName = fontFamilyInput.value;
-					if (fontName) {
-						loadGoogleFont(fontName);
-					}
-				});
-
-				colorSelect.addEventListener('change', (e) => {
-					const fontIndex = e.target.dataset.fontIndex;
-					const color = e.target.value;
-					const fontSampleText = fontSampleDiv.querySelector('.font-sample-text');
-					const customSelect = fontSampleDiv.querySelector('.select-custom .select-selected');
-					const colorCircle = fontSampleDiv.querySelector('.color-circle');
-
-					if (color) {
-						fontSampleText.style.color = color;
-						colorPicker.value = color;
-						customSelect.textContent = e.target.options[e.target.selectedIndex].text;
-						colorCircle.style.backgroundColor = color;
-					} else {
-						colorPicker.click();
-					}
-				});
-
-				colorPicker.addEventListener('input', (e) => {
-					const fontIndex = e.target.dataset.fontIndex;
-					const color = e.target.value;
-					const fontSampleText = fontSampleDiv.querySelector('.font-sample-text');
-					fontSampleText.style.color = color;
-					const customSelect = fontSampleDiv.querySelector('.select-custom .select-selected');
-					customSelect.textContent = color;
-					colorCircle.style.backgroundColor = color;
-
-					// Add the new color to the select
-					const newOption = document.createElement('option');
-					newOption.value = color;
-					newOption.textContent = color;
-					newOption.selected = true;
-					colorSelect.appendChild(newOption);
-
-					// Add to custom select
-					const items = fontSampleDiv.querySelector('.select-items');
-					const item = document.createElement('div');
-					item.textContent = color;
-					const colorCircle = document.createElement('span');
-					colorCircle.classList.add('color-circle');
-					colorCircle.style.backgroundColor = color;
-					item.prepend(colorCircle);
-					item.addEventListener('click', function () {
-						colorSelect.value = color;
-						customSelect.textContent = color;
-						items.classList.add('select-hide');
-						colorSelect.dispatchEvent(new Event('change'));
+				if (loadGoogleFontButton) {
+					refreshSyncButtonState();
+					loadGoogleFontButton.addEventListener('click', () => {
+						if (loadGoogleFontButton.disabled) return;
+						const fontName = getNormalizedFontFamily();
+						if (!fontName) return;
+						setSyncButtonState('loading');
+						loadGoogleFont(fontName).then(() => {
+							syncedFontFamilyNormalized = fontName.toLowerCase();
+							setSyncButtonState('synced');
+						}).catch((error) => {
+							console.error('Failed to load Google font', error);
+							syncedFontFamilyNormalized = '';
+							setSyncButtonState('idle');
+						});
 					});
-					items.appendChild(item);
-				});
+				}
 
 				fontSamples.appendChild(fontSampleDiv);
+				if (colorMenu && typeof colorMenu.update === 'function') {
+					requestAnimationFrame(() => colorMenu.update());
+				}
 			});
 		}
 
-		function createCustomSelect(selectElement) {
+			function createCustomSelect(selectElement, config) {
+			if (!selectElement || !selectElement.parentNode) return null;
+
+			const settings = Object.assign({
+				formatSelected(option) {
+					return option ? option.textContent : '';
+				},
+				formatItem(option) {
+					const item = document.createElement('div');
+					item.textContent = option.textContent;
+					return item;
+				},
+				className: '',
+				matchOptionWidth: false,
+				extraWidth: 0
+			}, config || {});
+
+			const matchOptionWidth = settings.matchOptionWidth === true;
+			const extraWidth = Number(settings.extraWidth) || 0;
+
 			const customSelect = document.createElement('div');
 			customSelect.classList.add('select-custom');
+			if (settings.className) customSelect.classList.add(settings.className);
 
 			const selected = document.createElement('div');
 			selected.classList.add('select-selected');
-			selected.textContent = selectElement.options[selectElement.selectedIndex].textContent;
+			selected.tabIndex = 0;
+			selected.setAttribute('role', 'button');
+			selected.setAttribute('aria-haspopup', 'listbox');
+			selected.setAttribute('aria-expanded', 'false');
 			customSelect.appendChild(selected);
 
 			const items = document.createElement('div');
 			items.classList.add('select-items', 'select-hide');
-
-			let maxWidth = 0;
-			const tempDiv = document.createElement('div');
-			tempDiv.style.position = 'absolute';
-			tempDiv.style.left = '-9999px';
-			document.body.appendChild(tempDiv);
-
-			for (let i = 0; i < selectElement.options.length; i++) {
-				const item = document.createElement('div');
-				item.textContent = selectElement.options[i].textContent;
-				tempDiv.appendChild(item);
-				maxWidth = Math.max(maxWidth, item.offsetWidth);
-				tempDiv.removeChild(item);
-
-				if (selectElement.dataset.isColorSelect) {
-					const colorCircle = document.createElement('span');
-					colorCircle.classList.add('color-circle');
-					colorCircle.style.backgroundColor = selectElement.options[i].value;
-					item.prepend(colorCircle);
-				}
-
-				item.addEventListener('click', function () {
-					selectElement.selectedIndex = i;
-					selected.textContent = this.textContent;
-					items.classList.add('select-hide');
-					selectElement.dispatchEvent(new Event('change'));
-				});
-				items.appendChild(item);
-			}
-
-			document.body.removeChild(tempDiv);
-			items.style.width = `${maxWidth}px`;
-
+			items.setAttribute('role', 'listbox');
 			customSelect.appendChild(items);
 
-			selected.addEventListener('click', function () {
-				items.classList.toggle('select-hide');
-			});
+			const measurement = matchOptionWidth ? (() => {
+				const selectedMeasure = selected.cloneNode(false);
+				selectedMeasure.classList.add('select-selected-measure');
+				selectedMeasure.tabIndex = -1;
+				selectedMeasure.setAttribute('aria-hidden', 'true');
+				selectedMeasure.style.position = 'absolute';
+				selectedMeasure.style.visibility = 'hidden';
+				selectedMeasure.style.pointerEvents = 'none';
+				selectedMeasure.style.height = 'auto';
+				selectedMeasure.style.whiteSpace = 'nowrap';
+				selectedMeasure.style.left = '-9999px';
+				selectedMeasure.style.top = '-9999px';
+				customSelect.appendChild(selectedMeasure);
 
-			document.addEventListener('click', function (e) {
-				if (!customSelect.contains(e.target)) {
-					items.classList.add('select-hide');
+				const optionMeasure = document.createElement('div');
+				optionMeasure.classList.add('select-option', 'select-option-measure');
+				optionMeasure.setAttribute('aria-hidden', 'true');
+				optionMeasure.style.position = 'absolute';
+				optionMeasure.style.visibility = 'hidden';
+				optionMeasure.style.pointerEvents = 'none';
+				optionMeasure.style.height = 'auto';
+				optionMeasure.style.whiteSpace = 'nowrap';
+				optionMeasure.style.left = '-9999px';
+				optionMeasure.style.top = '-9999px';
+				customSelect.appendChild(optionMeasure);
+
+				const measure = (target, content) => {
+					setContent(target, content);
+					return target.offsetWidth || target.scrollWidth || 0;
+				};
+
+				return {
+					selected(content) {
+						return measure(selectedMeasure, content);
+					},
+					option(content) {
+						return measure(optionMeasure, content);
+					},
+					destroy() {
+						if (selectedMeasure.parentNode) selectedMeasure.parentNode.removeChild(selectedMeasure);
+						if (optionMeasure.parentNode) optionMeasure.parentNode.removeChild(optionMeasure);
+					}
+				};
+			})() : null;
+
+			const setContent = (target, content) => {
+				target.innerHTML = '';
+				if (content instanceof Node) {
+					target.appendChild(content);
+				} else if (typeof content === 'string') {
+					target.textContent = content;
+				} else if (content != null) {
+					target.textContent = String(content);
+				} else {
+					target.textContent = '';
 				}
-			});
+			};
+
+			const closeDropdown = () => {
+				items.classList.add('select-hide');
+				selected.setAttribute('aria-expanded', 'false');
+			};
+
+			const openDropdown = () => {
+				items.classList.remove('select-hide');
+				selected.setAttribute('aria-expanded', 'true');
+			};
+
+			const applyOptionWidth = () => {
+				if (!matchOptionWidth || !measurement) return;
+				customSelect.style.width = 'auto';
+				selected.style.width = 'auto';
+				items.style.minWidth = '';
+				let maxWidth = 0;
+				Array.prototype.forEach.call(selectElement.options, (option, index) => {
+					if (option.disabled) return;
+					const selectedContent = settings.formatSelected(option, index, selectElement);
+					const optionContent = settings.formatItem(option, index, selectElement);
+					maxWidth = Math.max(
+						maxWidth,
+						measurement.selected(selectedContent),
+						measurement.option(optionContent)
+					);
+				});
+				const currentOption = selectElement.options[selectElement.selectedIndex] || null;
+				if (currentOption) {
+					const currentContent = settings.formatSelected(currentOption, selectElement.selectedIndex, selectElement);
+					maxWidth = Math.max(maxWidth, measurement.selected(currentContent));
+				} else if (!selectElement.options.length) {
+					const placeholderContent = settings.formatSelected(null, -1, selectElement);
+					maxWidth = Math.max(maxWidth, measurement.selected(placeholderContent));
+				}
+				const computedWidth = Math.ceil(maxWidth + extraWidth);
+				if (computedWidth > 0) {
+					customSelect.style.width = `${computedWidth}px`;
+					selected.style.width = '100%';
+					items.style.minWidth = '100%';
+				}
+			};
+
+			const updateSelectedDisplay = () => {
+				const option = selectElement.options[selectElement.selectedIndex] || null;
+				const content = settings.formatSelected(option, selectElement.selectedIndex, selectElement);
+				setContent(selected, content);
+				Array.prototype.forEach.call(items.children, (child) => {
+					child.classList.toggle('same-as-selected', Number(child.dataset.index) === selectElement.selectedIndex);
+				});
+				applyOptionWidth();
+			};
+
+			const buildItems = () => {
+				items.innerHTML = '';
+				Array.prototype.forEach.call(selectElement.options, (option, index) => {
+					if (option.disabled) return;
+					const formatted = settings.formatItem(option, index, selectElement);
+					const item = formatted instanceof Node ? formatted : (() => {
+						const el = document.createElement('div');
+						el.textContent = formatted != null ? String(formatted) : option.textContent;
+						return el;
+					})();
+					item.classList.add('select-option');
+					item.dataset.index = index;
+					item.setAttribute('role', 'option');
+					item.tabIndex = -1;
+					item.addEventListener('click', () => {
+						selectElement.selectedIndex = index;
+						selectElement.dispatchEvent(new Event('change'));
+						closeDropdown();
+						selected.focus();
+					});
+					items.appendChild(item);
+				});
+				updateSelectedDisplay();
+			};
+
+			const onSelectedClick = (e) => {
+				e.stopPropagation();
+				if (items.classList.contains('select-hide')) {
+					openDropdown();
+				} else {
+					closeDropdown();
+				}
+			};
+
+			const onSelectedKeydown = (e) => {
+				if (e.key === 'Enter' || e.key === ' ') {
+					e.preventDefault();
+					onSelectedClick(e);
+				} else if (e.key === 'Escape') {
+					closeDropdown();
+				}
+			};
+
+			const onDocumentClick = (e) => {
+				if (!customSelect.contains(e.target)) {
+					closeDropdown();
+				}
+			};
+
+			selected.addEventListener('click', onSelectedClick);
+			selected.addEventListener('keydown', onSelectedKeydown);
+			document.addEventListener('click', onDocumentClick);
 
 			selectElement.parentNode.insertBefore(customSelect, selectElement);
 			selectElement.style.display = 'none';
+
+			buildItems();
+
+			const onChange = () => updateSelectedDisplay();
+			selectElement.addEventListener('change', onChange);
+			applyOptionWidth();
+
+			const width = selectElement.offsetWidth;
+			if (!matchOptionWidth && width) {
+				customSelect.style.minWidth = `${width}px`;
+			}
+
+			return {
+				root: customSelect,
+				selectedEl: selected,
+				itemsEl: items,
+				refresh: () => {
+					buildItems();
+					applyOptionWidth();
+				},
+				update: () => {
+					updateSelectedDisplay();
+					applyOptionWidth();
+				},
+				destroy() {
+					document.removeEventListener('click', onDocumentClick);
+					selected.removeEventListener('click', onSelectedClick);
+					selected.removeEventListener('keydown', onSelectedKeydown);
+					selectElement.removeEventListener('change', onChange);
+					closeDropdown();
+					if (customSelect.parentNode) {
+						customSelect.parentNode.removeChild(customSelect);
+					}
+					selectElement.style.display = '';
+				}
+			};
 		}
 
 		// Populate brand select from window.BRAND_LIST
-		function populateSelect() {
-			if (!select) return;
-			const list = window.BRAND_LIST || [];
-			select.innerHTML = '';
-			list.forEach(id => {
-				const opt = document.createElement('option');
-				opt.value = id;
-				opt.textContent = id.charAt(0).toUpperCase() + id.slice(1);
-				select.appendChild(opt);
-			});
+			function populateSelect() {
+				if (!select) return;
+				const list = window.BRAND_LIST || [];
+				select.innerHTML = '';
+				list.forEach(id => {
+					const opt = document.createElement('option');
+					opt.value = id;
+					opt.textContent = id.charAt(0).toUpperCase() + id.slice(1);
+					select.appendChild(opt);
+				});
 
-			createCustomSelect(select);
-		}
+				if (brandSelectMenu && typeof brandSelectMenu.destroy === 'function') {
+					brandSelectMenu.destroy();
+					brandSelectMenu = null;
+				}
+
+				brandSelectMenu = createCustomSelect(select, {
+					formatSelected(option) {
+						return option ? option.textContent : 'Select brand';
+					},
+					formatItem(option) {
+						const item = document.createElement('div');
+						item.textContent = option.textContent;
+						return item;
+					},
+					className: 'brand-select-menu',
+					matchOptionWidth: true,
+					extraWidth: 2
+				});
+			}
 
 		// Dynamically load a brand data file by id (e.g. 'avyaan' -> data/avyaan.json.js)
 		let currentBrandScript = null;
@@ -382,15 +718,40 @@
 		// initial population and load first brand if available
 		populateSelect();
 		const first = (window.BRAND_LIST && window.BRAND_LIST[0]) || null;
-		if (first && select) select.value = first;
+		if (first && select) {
+			select.value = first;
+			if (brandSelectMenu && typeof brandSelectMenu.update === 'function') {
+				brandSelectMenu.update();
+			}
+		}
 		if (first) loadBrand(first).catch(err => console.error(err));
 
 		function loadGoogleFont(fontName) {
-			const fontUrl = `https://fonts.googleapis.com/css?family=${fontName.replace(/ /g, '+')}`;
-			const link = document.createElement('link');
-			link.rel = 'stylesheet';
-			link.href = fontUrl;
-			document.head.appendChild(link);
+			return new Promise((resolve, reject) => {
+				if (!fontName) {
+					reject(new Error('fontName is required'));
+					return;
+				}
+				const normalizedName = fontName.trim();
+				if (!normalizedName) {
+					reject(new Error('fontName is required'));
+					return;
+				}
+				const normalizedKey = normalizedName.toLowerCase();
+				const fontUrl = `https://fonts.googleapis.com/css?family=${normalizedName.replace(/ /g, '+')}`;
+				const existing = Array.prototype.find.call(document.querySelectorAll('link[data-google-font]'), (node) => node.dataset.googleFont === normalizedKey);
+				if (existing) {
+					resolve(existing);
+					return;
+				}
+				const link = document.createElement('link');
+				link.rel = 'stylesheet';
+				link.href = fontUrl;
+				link.dataset.googleFont = normalizedKey;
+				link.onload = () => resolve(link);
+				link.onerror = (err) => reject(err || new Error(`Failed to load Google font: ${fontUrl}`));
+				document.head.appendChild(link);
+			});
 		}
 	});
 

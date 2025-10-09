@@ -4,6 +4,7 @@
 // Top-level object with metadata and colours
 window.BRAND = {
 	title: 'Avyaan',
+	showSerialNumbers: true,
 	colours: [
 		{
 			id: 1,

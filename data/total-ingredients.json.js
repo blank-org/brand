@@ -4,6 +4,7 @@
 // Top-level object with metadata and colours
 window.BRAND = {
 	title: 'Total Ingredients',
+	showSerialNumbers: true,
 	colours: [
 		{
 			id: 1,

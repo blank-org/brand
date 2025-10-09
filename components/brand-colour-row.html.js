@@ -1,10 +1,11 @@
 (function () {
 	if (window.brandColourRowTemplate) return;
 
-	window.brandColourRowTemplate = function brandColourRowTemplate(item) {
+	window.brandColourRowTemplate = function brandColourRowTemplate(item, options) {
 		const { id, hex, name, usage = '', remark = '' } = item;
+		const showSerial = !options || options.showSerial !== false;
 		return `
-		<td>${id}</td>
+		${showSerial ? `<td class="serial">${id}</td>` : ''}
 		<td class="code">${hex}</td>
 		<td>
 		<div class="swatch">

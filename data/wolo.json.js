@@ -4,6 +4,7 @@
 // Top-level object with metadata and colours
 window.BRAND = {
 	title: 'Wolo',
+	showSerialNumbers: false,
 	colours: [
 		{
 			id: 1,
@@ -33,13 +34,15 @@ window.BRAND = {
 			family: 'Arial, sans-serif',
 			weight: 'bold',
 			color: 'Primary',
-			sampleText: 'The quick brown fox jumps over the lazy dog'
+			sampleText: 'The quick brown fox jumps over the lazy dog',
+			usage: 'use for hero headlines and marketing highlight copy'
 		},
 		{
 			name: 'Body Text',
 			family: 'Georgia, serif',
 			weight: 'normal',
-			color: '#333333'
+			color: '#333333',
+			usage: 'default body copy for paragraphs, lists, and long-form content'
 		}
 	]
 };

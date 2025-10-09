@@ -30,6 +30,43 @@ body {
 }
 
 /* header row: three-column flex layout (left: title, center: selector, right: small heading) */
+#preview-toggle {
+	position: absolute;
+	top: 24px;
+	right: 24px;
+	cursor: pointer;
+	color: #666;
+	opacity: 0.5;
+}
+
+body.preview-mode #preview-toggle {
+	opacity: 1;
+}
+
+#preview-toggle i {
+	font-size: 24px;
+}
+
+body.preview-mode .select-custom .select-items,
+body.preview-mode .select-custom .select-selected:after {
+	display: none;
+}
+
+body.preview-mode .select-selected {
+	cursor: default;
+}
+
+body.preview-mode .font-controls .font-source-select,
+body.preview-mode .font-controls .load-google-font,
+body.preview-mode .font-controls .color-picker-container,
+body.preview-mode .font-controls .select-custom {
+	display: none;
+}
+
+body.preview-mode .font-sample-text {
+	pointer-events: none;
+}
+
 .header-row {
 	/* use grid so the center selector can be perfectly centered regardless of content width */
 	display: grid;
@@ -53,6 +90,60 @@ h1 {
 	justify-self: center; /* center column */
 	width: 100%;
 	max-width: 360px; /* limit width so it stays centered visually */
+	position: relative;
+}
+
+.select-custom {
+	position: relative;
+	width: 100%;
+}
+
+.select-selected {
+	background-color: #fff;
+	padding: 8px 16px;
+	border: 1px solid #eef0f2;
+	border-radius: 4px;
+	cursor: pointer;
+	position: relative;
+}
+
+.select-selected:after {
+	position: absolute;
+	top: 50%;
+	left: 0px;
+	transform: translateY(-50%);
+	content: "";
+	width: 0;
+	height: 0;
+	border-left: 5px solid transparent;
+	border-right: 5px solid transparent;
+	border-top: 5px solid #666;
+}
+
+.select-items {
+	position: absolute;
+	top: 100%;
+	left: 0;
+	right: 0;
+	background-color: #fff;
+	border: 1px solid #eef0f2;
+	border-top: none;
+	border-radius: 0 0 4px 4px;
+	z-index: 99;
+}
+
+.select-items div {
+	padding: 8px 16px;
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.select-items div:hover {
+	background-color: #f7f7f8;
+}
+
+.select-hide {
+	display: none;
 }
 
 h3 {
@@ -158,6 +249,140 @@ footer.site-footer {
 	color: #666;
 	padding: 12px 0;
 	font-size: 13px
+}
+
+#font-samples {
+	margin-top: 24px;
+	max-width: 1000px;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+.font-sample {
+	margin-bottom: 24px;
+	padding: 16px;
+	border: 1px solid #eef0f2;
+	border-radius: 8px;
+	background: #fff;
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+}
+
+.font-family-control {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.font-controls {
+	position: absolute;
+	top: 16px;
+	right: 16px;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.font-sample-name {
+	font-size: 14px;
+	color: #666;
+	margin-bottom: 8px;
+}
+
+.font-sample-text {
+	font-size: 24px;
+	padding: 8px;
+	border-radius: 4px;
+}
+
+.font-sample-text:hover {
+	background: #f7f7f8;
+}
+
+.color-picker-container {
+	position: relative;
+}
+
+.color-picker-container input[type="color"] {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 16px;
+	height: 16px;
+	opacity: 0;
+	cursor: pointer;
+}
+
+.color-circle {
+	display: inline-block;
+	width: 16px;
+	height: 16px;
+	border-radius: 50%;
+	margin-right: 8px;
+	border: 1px solid #eef0f2;
+}
+
+.font-source-toggles {
+	display: flex;
+	margin-bottom: 8px;
+}
+
+.font-source-toggle {
+	background: none;
+	border: none;
+	cursor: pointer;
+	opacity: 0.5;
+}
+
+.font-source-toggle.active {
+	opacity: 1;
+}
+
+.font-source-toggle img {
+	width: 24px;
+	height: 24px;
+}
+
+.font-controls select,
+.font-controls input[type="color"] {
+	padding: 4px;
+	border: 1px solid #eef0f2;
+	border-radius: 4px;
+}
+
+.font-controls input[type="color"] {
+	width: 40px;
+	height: 28px;
+	padding: 0;
+	border: none;
+	background: none;
+}
+
+.font-controls span {
+	font-size: 14px;
+	color: #666;
+}
+
+body.preview-mode .select-custom .select-items,
+body.preview-mode .select-custom .select-selected:after {
+	display: none;
+}
+
+body.preview-mode .select-selected {
+	cursor: default;
+}
+
+body.preview-mode .font-controls .font-source-select,
+body.preview-mode .font-controls .load-google-font,
+body.preview-mode .font-controls .color-picker-container,
+body.preview-mode .font-controls .select-custom {
+	display: none;
+}
+
+body.preview-mode .font-sample-text {
+	pointer-events: none;
 }
 
 @media (max-width:640px) {

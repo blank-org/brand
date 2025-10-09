@@ -3,8 +3,9 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width,initial-scale=1" />
-		<title>Brand Colours</title>
+		<title>Brand</title>
 		<link rel="stylesheet" href="styles.css">
+		<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
 	</head>
 	<body>
 		<!-- wrap content so it can grow and push footer down on short pages -->
@@ -12,10 +13,9 @@
 			<div class="header-row">
 				<h1>Brand colours</h1>
 				<div class="brand-selector">
-					<label for="brand-select" class="visually-hidden">🔻</label>
 					<select id="brand-select" aria-label="Select brand"></select>
 				</div>
-				<h3></h3>
+				<div id="preview-toggle"><i class="material-icons">visibility</i></div>
 			</div>
 			<table aria-label="Brand colours table">
 				<thead>
@@ -30,11 +30,14 @@
 					<!-- rows are generated dynamically from data.json.js by script.js -->
 				</tbody>
 			</table>
+			<div id="font-samples"></div>
 		</main>
 
 		<!-- footer that stays at the bottom when content is short -->
 		<footer id='footer-brand' class="site-footer" role="contentinfo"></footer>
 		<script src="data/list.json.js"></script>
+		<script src="components/brand-colour-row.html.js"></script>
+		<script src="components/font-sample.html.js"></script>
 		<script src="script.js"></script>
 	</body>
 </html>

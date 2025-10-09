@@ -11,6 +11,13 @@
 		const tbody = document.querySelector('table tbody');
 		const select = document.getElementById('brand-select');
 
+		const previewToggle = document.getElementById('preview-toggle');
+		if (previewToggle) {
+			previewToggle.addEventListener('click', () => {
+				document.body.classList.toggle('preview-mode');
+			});
+		}
+
 		// Ensure the H3 shows the global company/brand name and is unaffected by the brand selector
 		if (heading && window.brand) heading.textContent = window.brand;
 		if (footer && window.brand) footer.textContent = window.brand;
@@ -47,24 +54,247 @@
 			const data = brand.colours || [];
 			if (!tbody) return;
 			tbody.innerHTML = '';
+			if (typeof window.brandColourRowTemplate !== 'function') {
+				console.error('brandColourRowTemplate component is not available.');
+				return;
+			}
+
 			data.forEach(item => {
 				const tr = document.createElement('tr');
-				tr.innerHTML = `
-	  <td>${item.id}</td>
-	  <td class="code">${item.hex}</td>
-	  <td>
-		<div class="swatch">
-		  <div class="color-box" style="background:${item.hex};" data-hex="${item.hex}" role="button" tabindex="0" title="Click to copy ${item.hex}" aria-label="${item.name} colour ${item.hex}"></div>
-		  <div>
-			<div class="color-label">${item.name}</div>
-			<div class="remark">${item.usage || ''}</div>
-		  </div>
-		</div>
-	  </td>
-	  <td class="remark">${item.remark || ''}</td>
-	`;
+				tr.innerHTML = window.brandColourRowTemplate(item);
 				tbody.appendChild(tr);
 			});
+
+			renderFonts(brand);
+		}
+
+		function renderFonts(brand) {
+			const fontSamples = document.getElementById('font-samples');
+			if (!fontSamples) return;
+
+			const fonts = brand.fonts || [];
+			if (fonts.length === 0) {
+				fontSamples.innerHTML = '';
+				return;
+			}
+
+			// let html = '<h2>Fonts</h2>';
+			fontSamples.innerHTML = '<h2>Fonts</h2>';
+
+			fonts.forEach((font, index) => {
+				const sampleText = font.sampleText || 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.';
+				let color = font.color;
+				if (brand.colours && brand.colours.find(c => c.name === color)) {
+					color = brand.colours.find(c => c.name === color).hex;
+				}
+
+				const fontSampleDiv = document.createElement('div');
+				fontSampleDiv.classList.add('font-sample');
+				if (typeof window.fontSampleTemplate !== 'function') {
+					console.error('fontSampleTemplate component is not available.');
+					fontSampleDiv.innerHTML = '';
+				} else {
+					fontSampleDiv.innerHTML = window.fontSampleTemplate({ font, sampleText, color });
+				}
+
+				const colorSelect = document.createElement('select');
+				colorSelect.id = `brand-color-select-${index}`;
+				colorSelect.dataset.fontIndex = index;
+				colorSelect.dataset.isColorSelect = true;
+
+				const customOption = document.createElement('option');
+				customOption.value = '';
+				customOption.textContent = 'Custom';
+				colorSelect.appendChild(customOption);
+
+				brand.colours.forEach(c => {
+					const opt = document.createElement('option');
+					opt.value = c.hex;
+					opt.textContent = c.name;
+					if (color === c.hex) {
+						opt.selected = true;
+					}
+					colorSelect.appendChild(opt);
+				});
+
+				const fontControls = fontSampleDiv.querySelector('.font-controls');
+				const colorPickerContainer = document.createElement('div');
+				colorPickerContainer.classList.add('color-picker-container');
+
+				const colorCircle = document.createElement('span');
+				colorCircle.classList.add('color-circle');
+				colorCircle.style.backgroundColor = color;
+				colorPickerContainer.appendChild(colorCircle);
+
+				const colorPicker = document.createElement('input');
+				colorPicker.type = 'color';
+				colorPicker.id = `color-picker-${index}`;
+				colorPicker.value = color;
+				colorPicker.dataset.fontIndex = index;
+				colorPickerContainer.appendChild(colorPicker);
+
+				fontControls.appendChild(colorPickerContainer);
+				fontControls.appendChild(colorSelect);
+
+				createCustomSelect(colorSelect);
+
+				const fontSourceToggles = fontSampleDiv.querySelectorAll('.font-source-toggle');
+				const loadGoogleFontButton = fontSampleDiv.querySelector('.load-google-font');
+
+				fontSourceToggles.forEach(toggle => {
+					toggle.addEventListener('click', (e) => {
+						fontSourceToggles.forEach(t => t.classList.remove('active'));
+						e.target.classList.add('active');
+						if (e.target.dataset.source === 'google') {
+							loadGoogleFontButton.style.display = 'inline-block';
+						} else {
+							loadGoogleFontButton.style.display = 'none';
+						}
+					});
+				});
+
+				const fontFamilyName = fontSampleDiv.querySelector('.font-family-name');
+				const fontFamilyInput = fontSampleDiv.querySelector('.font-family-input');
+				const fontSampleText = fontSampleDiv.querySelector('.font-sample-text');
+
+				fontFamilyName.addEventListener('click', () => {
+					fontFamilyName.style.display = 'none';
+					fontFamilyInput.style.display = 'inline-block';
+					fontFamilyInput.focus();
+				});
+
+				fontFamilyInput.addEventListener('blur', () => {
+					fontFamilyName.style.display = 'inline-block';
+					fontFamilyInput.style.display = 'none';
+					fontFamilyName.textContent = fontFamilyInput.value;
+					fontSampleText.style.fontFamily = fontFamilyInput.value;
+				});
+
+				fontFamilyInput.addEventListener('keydown', (e) => {
+					if (e.key === 'Enter') {
+						fontFamilyInput.blur();
+					}
+				});
+
+				loadGoogleFontButton.addEventListener('click', () => {
+					const fontName = fontFamilyInput.value;
+					if (fontName) {
+						loadGoogleFont(fontName);
+					}
+				});
+
+				colorSelect.addEventListener('change', (e) => {
+					const fontIndex = e.target.dataset.fontIndex;
+					const color = e.target.value;
+					const fontSampleText = fontSampleDiv.querySelector('.font-sample-text');
+					const customSelect = fontSampleDiv.querySelector('.select-custom .select-selected');
+					const colorCircle = fontSampleDiv.querySelector('.color-circle');
+
+					if (color) {
+						fontSampleText.style.color = color;
+						colorPicker.value = color;
+						customSelect.textContent = e.target.options[e.target.selectedIndex].text;
+						colorCircle.style.backgroundColor = color;
+					} else {
+						colorPicker.click();
+					}
+				});
+
+				colorPicker.addEventListener('input', (e) => {
+					const fontIndex = e.target.dataset.fontIndex;
+					const color = e.target.value;
+					const fontSampleText = fontSampleDiv.querySelector('.font-sample-text');
+					fontSampleText.style.color = color;
+					const customSelect = fontSampleDiv.querySelector('.select-custom .select-selected');
+					customSelect.textContent = color;
+					colorCircle.style.backgroundColor = color;
+
+					// Add the new color to the select
+					const newOption = document.createElement('option');
+					newOption.value = color;
+					newOption.textContent = color;
+					newOption.selected = true;
+					colorSelect.appendChild(newOption);
+
+					// Add to custom select
+					const items = fontSampleDiv.querySelector('.select-items');
+					const item = document.createElement('div');
+					item.textContent = color;
+					const colorCircle = document.createElement('span');
+					colorCircle.classList.add('color-circle');
+					colorCircle.style.backgroundColor = color;
+					item.prepend(colorCircle);
+					item.addEventListener('click', function () {
+						colorSelect.value = color;
+						customSelect.textContent = color;
+						items.classList.add('select-hide');
+						colorSelect.dispatchEvent(new Event('change'));
+					});
+					items.appendChild(item);
+				});
+
+				fontSamples.appendChild(fontSampleDiv);
+			});
+		}
+
+		function createCustomSelect(selectElement) {
+			const customSelect = document.createElement('div');
+			customSelect.classList.add('select-custom');
+
+			const selected = document.createElement('div');
+			selected.classList.add('select-selected');
+			selected.textContent = selectElement.options[selectElement.selectedIndex].textContent;
+			customSelect.appendChild(selected);
+
+			const items = document.createElement('div');
+			items.classList.add('select-items', 'select-hide');
+
+			let maxWidth = 0;
+			const tempDiv = document.createElement('div');
+			tempDiv.style.position = 'absolute';
+			tempDiv.style.left = '-9999px';
+			document.body.appendChild(tempDiv);
+
+			for (let i = 0; i < selectElement.options.length; i++) {
+				const item = document.createElement('div');
+				item.textContent = selectElement.options[i].textContent;
+				tempDiv.appendChild(item);
+				maxWidth = Math.max(maxWidth, item.offsetWidth);
+				tempDiv.removeChild(item);
+
+				if (selectElement.dataset.isColorSelect) {
+					const colorCircle = document.createElement('span');
+					colorCircle.classList.add('color-circle');
+					colorCircle.style.backgroundColor = selectElement.options[i].value;
+					item.prepend(colorCircle);
+				}
+
+				item.addEventListener('click', function () {
+					selectElement.selectedIndex = i;
+					selected.textContent = this.textContent;
+					items.classList.add('select-hide');
+					selectElement.dispatchEvent(new Event('change'));
+				});
+				items.appendChild(item);
+			}
+
+			document.body.removeChild(tempDiv);
+			items.style.width = `${maxWidth}px`;
+
+			customSelect.appendChild(items);
+
+			selected.addEventListener('click', function () {
+				items.classList.toggle('select-hide');
+			});
+
+			document.addEventListener('click', function (e) {
+				if (!customSelect.contains(e.target)) {
+					items.classList.add('select-hide');
+				}
+			});
+
+			selectElement.parentNode.insertBefore(customSelect, selectElement);
+			selectElement.style.display = 'none';
 		}
 
 		// Populate brand select from window.BRAND_LIST
@@ -78,6 +308,8 @@
 				opt.textContent = id.charAt(0).toUpperCase() + id.slice(1);
 				select.appendChild(opt);
 			});
+
+			createCustomSelect(select);
 		}
 
 		// Dynamically load a brand data file by id (e.g. 'avyaan' -> data/avyaan.json.js)
@@ -152,5 +384,15 @@
 		const first = (window.BRAND_LIST && window.BRAND_LIST[0]) || null;
 		if (first && select) select.value = first;
 		if (first) loadBrand(first).catch(err => console.error(err));
+
+		function loadGoogleFont(fontName) {
+			const fontUrl = `https://fonts.googleapis.com/css?family=${fontName.replace(/ /g, '+')}`;
+			const link = document.createElement('link');
+			link.rel = 'stylesheet';
+			link.href = fontUrl;
+			document.head.appendChild(link);
+		}
 	});
-})();
+
+	
+}) ();

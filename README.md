@@ -1,18 +1,27 @@
-Brand Colours reference
+# Brand Colours Reference
 
-This small static page lists the project's brand colours and allows quick copying of hex codes.
+## Overview
+This project is a static web experience for exploring brand palettes. Users can browse available brands, copy colour hex codes, and preview typography samples without any backend services. The stack is intentionally lightweight: HTML, CSS, and vanilla JavaScript.
 
-Files
-- Brand.html - the main HTML file. It links to the external CSS/JS and data script.
-- styles.css - externalized styles originally inline in `Brand.html`.
-- script.js - handles rendering (if `data.json.js` is present) and copy-on-click behaviour.
-- data.json.js - contains an array of colour definitions as `window.BRAND_COLORS`.
+## Project Structure
+- `brand.html` – top-level document that loads styles, components, and client scripts.
+- `styles.css` – shared styling for layout, tables, and controls.
+- `script.js` – handles DOM hydration, brand selection, colour rendering, and font previews.
+- `data/list.json.js` – declares `window.BRAND_LIST`, which drives the dropdown.
+- `data/<brand>.json.js` – each file defines a `window.BRAND` object with metadata, colours, and fonts.
+- `components/` – reusable HTML snippets exposed as scripts (e.g., colour rows, font samples).
+- `resource/` – supporting assets such as icons.
 
-Usage
-1. Open `Brand.html` in a browser (double-click or serve from a static server).
-2. Click any colour swatch (the coloured box) to copy its hex code to the clipboard.
+## Running Locally
+Because everything is static, you can double-click `brand.html` to open it in a browser. For iterative development use a lightweight static server to avoid CORS issues when editing data files, e.g. `npx serve .`.
 
-Notes
-- `data.json.js` is a plain script that sets `window.BRAND_COLORS`. You can edit or replace it with a JSON fetch if you prefer.
-- The page uses the Clipboard API when available; a textarea fallback is included for older browsers.
-- Accessibility: colour swatches have `role="button"` and keyboard support (Enter/Space).
+## Adding a Brand
+1. Create `data/<brandId>.json.js` that sets `window.BRAND = { name, colours: [], fonts: [] }`.
+2. Append the same `<brandId>` to the array in `data/list.json.js` so it appears in the selector.
+3. (Optional) Adjust `styles.css` or add assets under `resource/` if the new brand requires them.
+4. Reload `brand.html` and confirm colours, copy-to-clipboard behaviour, and font controls.
+
+## Notes
+- Colour swatches expose `role="button"`, keyboard interaction, and clipboard feedback for accessibility.
+- If you introduce tooling (linting, tests), document commands in `README.md` and `AGENTS.md`.
+- Keep data scripts as simple assignments; no bundler or transpiler is configured.

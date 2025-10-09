@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="80" viewBox="0 0 220 80">
+	<rect width="220" height="80" rx="12" fill="#111827"/>
+	<g fill="none" stroke="#ffffff" stroke-width="4">
+		<circle cx="60" cy="40" r="24"/>
+		<path d="M60 16v48"/>
+		<path d="M36 40h48"/>
+	</g>
+	<text x="100" y="48" font-family="Georgia, serif" font-size="26" font-weight="600" fill="#ffffff">Sample</text>
+</svg>

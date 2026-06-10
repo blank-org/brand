@@ -10,7 +10,7 @@
 
 ## Architecture Overview
 - Entire app is static; no bundlers or build steps. Loading `brand.html` executes each script in source order.
-- Brand data files (`data/<brand>.json.js`) attach `window.BRAND` with `name`, `colours`, and `fonts`. The main script imports them dynamically based on the dropdown.
+- Brand data files (`data/<brand>.json.js`) attach `window.BRAND` with `name`, `colours`, `fonts`, and optional `icons`. The main script imports them dynamically based on the dropdown.
 - Clipboard support relies on the modern API with a textarea fallback; keep interactions progressive.
 
 ## Build, Test, and Development Commands
@@ -31,7 +31,7 @@
 
 ## Brand Data Workflow
 - To add a brand, create `data/<brandId>.json.js` exporting `window.BRAND` and append the id to `window.BRAND_LIST` in `data/list.json.js`.
-- Ensure each `colours` entry includes `id`, `hex`, `name`, and optional `usage`/`remark`; fonts should provide `name`, `family`, `weight`, and `sampleText`.
+- Ensure each `colours` entry includes `id`, `hex`, `name`, and optional `usage`/`remark`; fonts should provide `name`, `family`, `weight`, and `sampleText`; icon comparison categories should provide `category` and `rows`, with each row providing `label`, `currentIndex`, and `variants` with Lucide icon name strings.
 - Keep new assets under `resource/` and update CSS only when a brand needs bespoke styling.
 
 ## Commit & Pull Request Guidelines

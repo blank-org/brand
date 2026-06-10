@@ -1,4 +1,4 @@
-﻿/* Externalized styles from Brand.html */
+/* Externalized styles from Brand.html */
 :root {
 	font-family: Arial, Helvetica, sans-serif;
 	--body-bg: #f7f7f8;
@@ -309,6 +309,8 @@ body.preview-mode .font-card-actions .color-picker-container,
 body.preview-mode .font-card-actions .select-custom,
 body.preview-mode .font-source-toggles,
 body.preview-mode .font-card-meta .font-family-input,
+body.preview-mode .icon-comparison-header,
+body.preview-mode .icon-control-cell,
 body.preview-mode table thead {
 	display: none;
 }
@@ -327,6 +329,26 @@ body.preview-mode .font-family-name {
 	pointer-events: none;
 }
 
+body.preview-mode .icon-comparison-scroll {
+	overflow-x: visible;
+}
+
+body.preview-mode .icon-comparison-content {
+	min-width: 0;
+}
+
+body.preview-mode .icon-comparison-row {
+	grid-template-columns: minmax(8rem, 14rem) minmax(8rem, 12rem) !important;
+}
+
+body.preview-mode .icon-option-card:not(.is-selected),
+body.preview-mode .icon-option-empty {
+	display: none;
+}
+
+body.preview-mode .icon-option-card.is-selected {
+	pointer-events: none;
+}
 
 .header-row {
 	/* use grid so the center selector can be perfectly centered regardless of content width */
@@ -424,6 +446,211 @@ body.preview-mode .font-family-name {
 	color: var(--muted-text);
 }
 
+.icon-comparison.is-hidden {
+	display: none;
+}
+
+.icon-comparison-list {
+	display: flex;
+	flex-direction: column;
+	gap: 18px;
+}
+
+.icon-comparison-category {
+	padding: 18px 20px 20px;
+	border-radius: 8px;
+	border: 1px solid var(--surface-border);
+	background: var(--surface-bg);
+	box-shadow: var(--surface-shadow);
+}
+
+.icon-category-label {
+	margin-bottom: 14px;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--muted-text);
+}
+
+.icon-comparison-scroll {
+	overflow-x: auto;
+	padding-bottom: 2px;
+}
+
+.icon-comparison-content {
+	min-width: max-content;
+}
+
+.icon-comparison-header,
+.icon-comparison-row {
+	display: grid;
+	gap: 12px;
+	align-items: stretch;
+}
+
+.icon-comparison-header {
+	padding-bottom: 10px;
+}
+
+.icon-index-label,
+.icon-control-label {
+	display: grid;
+	place-items: center;
+	font-size: 13px;
+	font-weight: 700;
+	color: var(--muted-text);
+}
+
+.icon-control-label i {
+	font-size: 20px;
+}
+
+.icon-comparison-row {
+	margin-top: 12px;
+}
+
+.icon-row-label {
+	display: flex;
+	align-items: center;
+	min-height: 112px;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	font-weight: 700;
+	color: var(--body-text);
+	text-align: left;
+	cursor: pointer;
+	transition: color 0.2s ease, filter 0.2s ease, opacity 0.2s ease;
+}
+
+.icon-row-label:hover,
+.icon-row-label:focus-visible,
+.icon-row-label.is-exclusive {
+	color: var(--accent-primary);
+}
+
+.icon-row-label:focus-visible {
+	outline: 2px solid var(--accent-primary);
+	outline-offset: 4px;
+	border-radius: 4px;
+}
+
+.icon-comparison-row.is-exclusive-blurred .icon-row-label {
+	filter: blur(1.5px) grayscale(1);
+	opacity: 0.45;
+}
+
+.icon-comparison-row.is-exclusive-active .icon-control-cell {
+	filter: blur(1.5px) grayscale(1);
+	opacity: 0.45;
+}
+
+.icon-option-card {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 12px;
+	min-height: 112px;
+	padding: 16px 12px;
+	border: 1px solid var(--surface-border);
+	border-radius: 8px;
+	background: var(--surface-bg);
+	color: var(--body-text);
+	text-align: center;
+	cursor: pointer;
+	transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease, opacity 0.2s ease;
+}
+
+.icon-option-card:hover,
+.icon-option-card:focus-visible {
+	border-color: var(--accent-primary);
+	outline: none;
+}
+
+.icon-option-card.is-selected {
+	border-color: var(--accent-primary);
+	background: var(--accent-muted-bg);
+	color: var(--accent-primary);
+	box-shadow: var(--surface-shadow-hover);
+}
+
+.icon-option-card.is-current-faded {
+	opacity: 0.45;
+}
+
+.icon-option-card.is-blurred {
+	filter: blur(1.5px) grayscale(1);
+	opacity: 0.45;
+}
+
+.icon-option-card.is-selected.is-blurred {
+	opacity: 0.75;
+}
+
+.icon-option-symbol {
+	display: grid;
+	place-items: center;
+	width: 48px;
+	height: 48px;
+	border: 1px solid currentColor;
+	opacity: 0.9;
+	border-radius: 8px;
+	background: var(--card-bg);
+}
+
+.icon-option-symbol svg {
+	width: 26px;
+	height: 26px;
+}
+
+.icon-option-symbol i {
+	display: block;
+	width: 26px;
+	height: 26px;
+}
+
+.icon-library-missing .icon-option-symbol i::before {
+	content: attr(data-lucide);
+	display: block;
+	max-width: 76px;
+	font-size: 9px;
+	line-height: 1.1;
+	overflow-wrap: anywhere;
+}
+
+.icon-option-name {
+	display: block;
+	max-width: 100%;
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.25;
+	color: var(--muted-text);
+	overflow-wrap: anywhere;
+}
+
+.icon-option-empty {
+	min-height: 112px;
+	border-radius: 8px;
+	border: 1px dashed var(--surface-border);
+	opacity: 0.5;
+}
+
+.icon-control-cell {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 112px;
+	transition: filter 0.2s ease, opacity 0.2s ease;
+}
+
+.icon-control-cell input {
+	width: 20px;
+	height: 20px;
+	accent-color: var(--accent-primary);
+	cursor: pointer;
+}
 
 .brand-selector {
 	display: flex;

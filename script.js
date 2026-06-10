@@ -15,6 +15,8 @@
 		const themeToggle = document.getElementById('theme-toggle');
 		const logoSection = document.getElementById('logo-files');
 		const logoList = document.getElementById('logo-files-list');
+		const iconComparisonSection = document.getElementById('icon-comparison');
+		const iconComparisonList = document.getElementById('icon-comparison-list');
 		const body = document.body;
 		const bodyThemeClasses = ['theme-light', 'theme-dark'];
 		let brandSelectMenu = null;
@@ -25,6 +27,9 @@
 		let activeBrandId = null;
 		let activeBrandThemes = [];
 		let activeThemeId = null;
+		const selectedIconIndexes = {};
+		const highlightedIconRows = {};
+		let exclusiveIconRowKey = null;
 
 		const previewToggle = document.getElementById('preview-toggle');
 		if (previewToggle) {
@@ -321,6 +326,7 @@
 			});
 
 			renderFonts(brand);
+			renderIconComparison(brand);
 		}
 
 		function renderLogoFiles(brand) {
@@ -381,6 +387,282 @@
 			}
 		}
 
+		function normalizeIconName(value) {
+			if (value === null || value === undefined) return '';
+			return String(value).trim();
+		}
+
+		function toLucideAttributeName(value) {
+			const name = normalizeIconName(value);
+			if (!name) return '';
+			return name
+				.replace(/([A-Z]+)([A-Z][a-z])/g, '$1-$2')
+				.replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+				.replace(/[\s_]+/g, '-')
+				.toLowerCase();
+		}
+
+		function getIconGroups(brand) {
+			const source = brand && (brand.icons || brand.iconComparison || brand.iconComparisons);
+			if (!Array.isArray(source)) return [];
+			function addIconRow(acc, item, parentCategory) {
+				if (!item) return;
+				const label = normalizeIconName(item.label || item.name);
+				const category = normalizeIconName(parentCategory || item.category || item.location || item.group || 'Icons');
+				const variants = Array.isArray(item.variants) ? item.variants.reduce((variantAcc, variant) => {
+					if (!variant) return variantAcc;
+					const index = variant.index === undefined || variant.index === null ? variantAcc.length + 1 : variant.index;
+					const icon = normalizeIconName(variant.icon || variant.name || variant.component);
+					if (!icon) return variantAcc;
+					variantAcc.push({
+						index,
+						icon,
+						name: normalizeIconName(variant.name) || icon
+					});
+					return variantAcc;
+				}, []) : [];
+				if (!label || !variants.length) return;
+				const currentIndex = item.currentIndex === undefined || item.currentIndex === null ? variants[0].index : item.currentIndex;
+				acc.push({ label, category, currentIndex, variants });
+			}
+			return source.reduce((acc, item) => {
+				if (!item) return acc;
+				const parentCategory = normalizeIconName(item.category || item.location || item.group);
+				const children = item.rows || item.items || item.icons;
+				if (Array.isArray(children)) {
+					children.forEach(child => addIconRow(acc, child, parentCategory));
+					return acc;
+				}
+				addIconRow(acc, item, parentCategory);
+				return acc;
+			}, []);
+		}
+
+		function getIconRowKey(category, label) {
+			return `${category}::${label}`;
+		}
+
+		function groupIconRows(rows) {
+			const categories = [];
+			const byCategory = {};
+			rows.forEach(row => {
+				if (!byCategory[row.category]) {
+					byCategory[row.category] = [];
+					categories.push(row.category);
+				}
+				byCategory[row.category].push(row);
+			});
+			return categories.map(category => ({ category, rows: byCategory[category] }));
+		}
+
+		function getIconIndexes(rows) {
+			const values = [];
+			rows.forEach(row => {
+				row.variants.forEach(variant => {
+					if (!values.some(value => String(value) === String(variant.index))) {
+						values.push(variant.index);
+					}
+				});
+			});
+			return values.sort((a, b) => {
+				const aNumber = Number(a);
+				const bNumber = Number(b);
+				if (!Number.isNaN(aNumber) && !Number.isNaN(bNumber)) return aNumber - bNumber;
+				return String(a).localeCompare(String(b));
+			});
+		}
+
+		function applyIconGridColumns(element, count) {
+			if (!element) return;
+			element.style.gridTemplateColumns = `8rem repeat(${count}, 8rem) 6rem`;
+		}
+
+		function refreshLucideIcons(root) {
+			if (window.lucide && typeof window.lucide.createIcons === 'function') {
+				try {
+					window.lucide.createIcons({
+						attrs: {
+							'aria-hidden': 'true',
+							'stroke-width': 1.75
+						},
+						nameAttr: 'data-lucide'
+					});
+				} catch (err) {
+					console.error('Failed to render lucide icons', err);
+				}
+			} else if (root) {
+				root.classList.add('icon-library-missing');
+			}
+		}
+
+		function updateIconComparisonState() {
+			if (!iconComparisonList) return;
+			const exclusiveActive = exclusiveIconRowKey !== null;
+			const rows = iconComparisonList.querySelectorAll('.icon-comparison-row');
+			rows.forEach(row => {
+				const rowKey = row.dataset.rowKey;
+				const currentIndex = row.dataset.currentIndex;
+				const selectedIndex = selectedIconIndexes[rowKey] || currentIndex;
+				const highlightEnabled = highlightedIconRows[rowKey] === true;
+				const rowIsExclusive = exclusiveIconRowKey === rowKey;
+				const rowIsBlurred = exclusiveActive && !rowIsExclusive;
+
+				row.classList.toggle('is-exclusive-active', exclusiveActive);
+				row.classList.toggle('is-exclusive-blurred', rowIsBlurred);
+
+				const highlightInput = row.querySelector('.icon-row-highlight');
+				const rowLabel = row.querySelector('.icon-row-label');
+				if (highlightInput) highlightInput.checked = highlightEnabled;
+				if (rowLabel) {
+					rowLabel.classList.toggle('is-exclusive', rowIsExclusive);
+					rowLabel.setAttribute('aria-pressed', rowIsExclusive ? 'true' : 'false');
+				}
+
+				row.querySelectorAll('.icon-option-card').forEach(card => {
+					const index = card.dataset.iconIndex;
+					const isSelected = String(index) === String(selectedIndex);
+					const isCurrent = String(index) === String(currentIndex);
+					const isHighlighted = isSelected && (!exclusiveActive || rowIsExclusive);
+					const currentIsDifferent = String(selectedIndex) !== String(currentIndex);
+					const cardIsBlurred = exclusiveActive ? !isHighlighted : (highlightEnabled && !isSelected);
+					card.classList.toggle('is-selected', isHighlighted);
+					card.classList.toggle('is-current-faded', isCurrent && currentIsDifferent);
+					card.classList.toggle('is-blurred', cardIsBlurred);
+					card.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+				});
+			});
+		}
+
+		function renderIconComparison(brand) {
+			if (!iconComparisonSection || !iconComparisonList) return;
+			const rows = getIconGroups(brand);
+			iconComparisonList.innerHTML = '';
+			if (!rows.length) {
+				iconComparisonSection.classList.add('is-hidden');
+				return;
+			}
+
+			iconComparisonSection.classList.remove('is-hidden');
+			const iconIndexes = getIconIndexes(rows);
+			groupIconRows(rows).forEach(group => {
+				const indexes = iconIndexes;
+				const section = document.createElement('section');
+				section.className = 'icon-comparison-category';
+
+				const label = document.createElement('div');
+				label.className = 'icon-category-label';
+				label.textContent = group.category;
+				section.appendChild(label);
+
+				const scroller = document.createElement('div');
+				scroller.className = 'icon-comparison-scroll';
+				const content = document.createElement('div');
+				content.className = 'icon-comparison-content';
+
+				const header = document.createElement('div');
+				header.className = 'icon-comparison-header';
+				applyIconGridColumns(header, indexes.length);
+				header.appendChild(document.createElement('div'));
+				indexes.forEach(index => {
+					const indexLabel = document.createElement('div');
+					indexLabel.className = 'icon-index-label';
+					indexLabel.textContent = index;
+					header.appendChild(indexLabel);
+				});
+				const controlLabel = document.createElement('div');
+				controlLabel.className = 'icon-control-label';
+				controlLabel.setAttribute('aria-label', 'Highlight');
+				controlLabel.title = 'Highlight';
+				const controlIcon = document.createElement('i');
+				controlIcon.className = 'material-icons';
+				controlIcon.setAttribute('aria-hidden', 'true');
+				controlIcon.textContent = 'highlight';
+				controlLabel.appendChild(controlIcon);
+				header.appendChild(controlLabel);
+				content.appendChild(header);
+
+				group.rows.forEach((rowData, rowIndex) => {
+					const rowKey = getIconRowKey(group.category, rowData.label);
+					if (selectedIconIndexes[rowKey] === undefined) {
+						selectedIconIndexes[rowKey] = rowData.currentIndex;
+					}
+
+					const row = document.createElement('div');
+					row.className = 'icon-comparison-row';
+					row.dataset.rowKey = rowKey;
+					row.dataset.currentIndex = rowData.currentIndex;
+					applyIconGridColumns(row, indexes.length);
+
+					const nameCell = document.createElement('button');
+					nameCell.type = 'button';
+					nameCell.className = 'icon-row-label';
+					nameCell.textContent = `${String.fromCharCode(65 + rowIndex)}. ${rowData.label}`;
+					nameCell.setAttribute('aria-label', `Exclusively highlight ${rowData.label}`);
+					nameCell.addEventListener('click', () => {
+						exclusiveIconRowKey = exclusiveIconRowKey === rowKey ? null : rowKey;
+						updateIconComparisonState();
+					});
+					row.appendChild(nameCell);
+
+					indexes.forEach(index => {
+						const variant = rowData.variants.find(item => String(item.index) === String(index));
+						if (!variant) {
+							const empty = document.createElement('div');
+							empty.className = 'icon-option-empty';
+							row.appendChild(empty);
+							return;
+						}
+
+						const button = document.createElement('button');
+						button.type = 'button';
+						button.className = 'icon-option-card';
+						button.dataset.rowKey = rowKey;
+						button.dataset.iconIndex = variant.index;
+						button.setAttribute('aria-label', `${rowData.label} option ${variant.index}: ${variant.name}`);
+
+						const iconBox = document.createElement('span');
+						iconBox.className = 'icon-option-symbol';
+						const icon = document.createElement('i');
+						icon.setAttribute('data-lucide', toLucideAttributeName(variant.icon));
+						iconBox.appendChild(icon);
+						button.appendChild(iconBox);
+
+						const name = document.createElement('span');
+						name.className = 'icon-option-name';
+						name.textContent = variant.name;
+						button.appendChild(name);
+
+						button.addEventListener('click', () => {
+							selectedIconIndexes[rowKey] = variant.index;
+							updateIconComparisonState();
+						});
+						row.appendChild(button);
+					});
+
+					const highlightCell = document.createElement('label');
+					highlightCell.className = 'icon-control-cell';
+					const highlightInput = document.createElement('input');
+					highlightInput.type = 'checkbox';
+					highlightInput.className = 'icon-row-highlight';
+					highlightInput.setAttribute('aria-label', `Highlight ${rowData.label}`);
+					highlightInput.addEventListener('change', (event) => {
+						highlightedIconRows[rowKey] = event.target.checked;
+						updateIconComparisonState();
+					});
+					highlightCell.appendChild(highlightInput);
+					row.appendChild(highlightCell);
+
+					content.appendChild(row);
+				});
+
+				scroller.appendChild(content);
+				section.appendChild(scroller);
+				iconComparisonList.appendChild(section);
+			});
+
+			updateIconComparisonState();
+			refreshLucideIcons(iconComparisonList);
+		}
 
 		function renderFonts(brand) {
 			const fontSamples = document.getElementById('font-samples');

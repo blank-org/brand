@@ -7,15 +7,25 @@
 		<link rel="stylesheet" href="styles.css">
 		<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
 	</head>
-	<body>
+	<body class="theme-light">
 		<!-- wrap content so it can grow and push footer down on short pages -->
 		<main class="content">
 			<div class="header-row">
 				<img class="logo" src="resource/logo.svg" alt="Brand logo" width="120" height="36">
-				<div class="brand-selector">
-					<select id="brand-select" aria-label="Select brand"></select>
+				<div class="selector-stack">
+					<div class="brand-selector">
+						<select id="brand-select" aria-label="Select brand"></select>
+					</div>
+					<div class="theme-selector" id="theme-selector" hidden>
+						<select id="theme-select" aria-label="Select theme"></select>
+					</div>
 				</div>
-				<div id="preview-toggle"><i class="material-icons">visibility</i></div>
+				<div class="header-actions">
+					<button id="theme-toggle" class="icon-toggle" type="button" aria-label="Toggle theme" hidden>
+						<i class="material-icons" aria-hidden="true">light_mode</i>
+					</button>
+					<div id="preview-toggle" role="button" tabindex="0" aria-pressed="false"><i class="material-icons">visibility</i></div>
+				</div>
 			</div>
 			<section id="logo-files" class="logo-files is-hidden sections" aria-labelledby="logo-files-heading">
 				<div class="logo-file-list" id="logo-files-list" role="list"></div>

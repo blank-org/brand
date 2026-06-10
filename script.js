@@ -1,4 +1,4 @@
-// script.js - handles rendering and copy-on-click behaviour
+﻿// script.js - handles rendering and copy-on-click behaviour
 (function () {
 	// Wait for DOM
 	function ready(fn) {
@@ -10,16 +10,41 @@
 		const footer = document.getElementById('footer-brand');
 		const tbody = document.querySelector('table tbody');
 		const select = document.getElementById('brand-select');
+		const themeSelector = document.getElementById('theme-selector');
+		const themeSelect = document.getElementById('theme-select');
+		const themeToggle = document.getElementById('theme-toggle');
 		const logoSection = document.getElementById('logo-files');
 		const logoList = document.getElementById('logo-files-list');
+		const body = document.body;
+		const bodyThemeClasses = ['theme-light', 'theme-dark'];
 		let brandSelectMenu = null;
+		let themeSelectMenu = null;
+		let themeControlMode = 'none';
 		const fontSelectMenus = [];
+		let activeBrandData = null;
+		let activeBrandId = null;
+		let activeBrandThemes = [];
+		let activeThemeId = null;
 
 		const previewToggle = document.getElementById('preview-toggle');
 		if (previewToggle) {
-			previewToggle.addEventListener('click', () => {
-				document.body.classList.toggle('preview-mode');
+			const updatePreviewToggleState = () => {
+				const isActive = body && body.classList.contains('preview-mode');
+				previewToggle.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+			};
+			const togglePreviewMode = () => {
+				if (!body) return;
+				body.classList.toggle('preview-mode');
+				updatePreviewToggleState();
+			};
+			previewToggle.addEventListener('click', togglePreviewMode);
+			previewToggle.addEventListener('keydown', (e) => {
+				if (e.key === 'Enter' || e.key === ' ') {
+					e.preventDefault();
+					togglePreviewMode();
+				}
 			});
+			updatePreviewToggleState();
 		}
 
 		// Ensure the H3 shows the global company/brand name and is unaffected by the brand selector
@@ -49,6 +74,226 @@
 			codeCell.textContent = 'Copied!';
 			codeCell.classList.add('copied');
 			setTimeout(() => { codeCell.textContent = original; codeCell.classList.remove('copied'); }, 1400);
+		}
+
+		function normalizeThemeId(value) {
+			if (value === null || value === undefined) return null;
+			const str = String(value).trim();
+			return str ? str : null;
+		}
+
+		function getBrandThemes(brand) {
+			if (!brand || !Array.isArray(brand.themes)) return [];
+			return brand.themes.reduce((acc, theme) => {
+				if (!theme) return acc;
+				const themeId = normalizeThemeId(theme.id);
+				const colours = Array.isArray(theme.colours) ? theme.colours : [];
+				if (!themeId || !colours.length) return acc;
+				acc.push(Object.assign({}, theme, { id: themeId, colours }));
+				return acc;
+			}, []);
+		}
+
+		function pickThemeId(themes, candidates) {
+			if (!Array.isArray(themes) || !themes.length) return null;
+			const list = Array.isArray(candidates) ? candidates : [candidates];
+			const seen = new Set();
+			for (let i = 0; i < list.length; i += 1) {
+				const candidate = normalizeThemeId(list[i]);
+				if (!candidate || seen.has(candidate)) continue;
+				seen.add(candidate);
+				const match = themes.find(theme => theme.id === candidate);
+				if (match) return match.id;
+			}
+			return themes[0].id;
+		}
+
+		function buildBrandForTheme(brand, themeId, themes) {
+			if (!brand) return null;
+			const themeList = Array.isArray(themes) ? themes : getBrandThemes(brand);
+			if (!themeList.length) return brand;
+			const normalizedId = normalizeThemeId(themeId);
+			const defaultThemeId = normalizeThemeId(brand && brand.defaultTheme);
+			const theme = themeList.find(t => t.id === normalizedId)
+				|| (defaultThemeId ? themeList.find(t => t.id === defaultThemeId) : null)
+				|| themeList[0];
+			if (!theme) return brand;
+			const sourceColours = Array.isArray(theme.colours) && theme.colours.length
+				? theme.colours
+				: (Array.isArray(brand.colours) ? brand.colours : []);
+			const clone = Object.assign({}, brand);
+			clone.colours = sourceColours.map(colour => Object.assign({}, colour));
+			clone.activeTheme = theme.id;
+			clone.activeThemeLabel = theme.label || theme.name || theme.id;
+			return clone;
+		}
+
+		function supportsBinaryThemeToggle(themes) {
+			if (!Array.isArray(themes) || themes.length < 2) return false;
+			let hasLight = false;
+			let hasDark = false;
+			themes.forEach((theme) => {
+				const id = normalizeThemeId(theme && theme.id);
+				if (id === 'light') hasLight = true;
+				if (id === 'dark') hasDark = true;
+			});
+			return hasLight && hasDark && themes.length <= 2;
+		}
+
+		function applyDocumentTheme(themeId) {
+			if (!body) return;
+			const normalized = normalizeThemeId(themeId);
+			const themeClass = normalized === 'dark' ? 'theme-dark' : 'theme-light';
+			bodyThemeClasses.forEach(cls => body.classList.remove(cls));
+			body.classList.add(themeClass);
+			body.dataset.activeTheme = normalized || 'light';
+		}
+
+		function updateThemeToggleUI() {
+			if (!themeToggle) return;
+			if (themeControlMode !== 'toggle') {
+				themeToggle.hidden = true;
+				themeToggle.setAttribute('aria-hidden', 'true');
+				return;
+			}
+			const icon = themeToggle.querySelector('i');
+			const isDark = normalizeThemeId(activeThemeId) === 'dark';
+
+			const nextLabel = isDark ? 'Switch to light theme' : 'Switch to dark theme';
+			if (icon) {
+				icon.textContent = isDark ? 'dark_mode' : 'light_mode';
+			}
+			themeToggle.hidden = false;
+			themeToggle.setAttribute('aria-hidden', 'false');
+			themeToggle.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+			themeToggle.setAttribute('aria-label', nextLabel);
+			themeToggle.setAttribute('title', nextLabel);
+		}
+
+		function updateThemeControls() {
+			if (!themeSelector || !themeSelect) return;
+			const hasThemes = Array.isArray(activeBrandThemes) && activeBrandThemes.length > 0;
+			const useToggle = hasThemes && supportsBinaryThemeToggle(activeBrandThemes);
+
+			if (!hasThemes) {
+				if (themeSelectMenu && typeof themeSelectMenu.destroy === 'function') {
+					themeSelectMenu.destroy();
+					themeSelectMenu = null;
+				}
+				themeSelect.innerHTML = '';
+				themeSelect.value = '';
+				themeSelector.hidden = true;
+				if (themeToggle) {
+					themeToggle.hidden = true;
+					themeToggle.setAttribute('aria-hidden', 'true');
+				}
+				themeControlMode = 'none';
+				return;
+			}
+
+			if (useToggle) {
+				if (themeSelectMenu && typeof themeSelectMenu.destroy === 'function') {
+					themeSelectMenu.destroy();
+					themeSelectMenu = null;
+				}
+				themeSelector.hidden = true;
+				themeControlMode = 'toggle';
+				if (themeToggle) {
+					themeToggle.hidden = false;
+				}
+				updateThemeToggleUI();
+				return;
+			}
+
+			themeControlMode = 'dropdown';
+			themeSelector.hidden = false;
+			if (themeToggle) {
+				themeToggle.hidden = true;
+				themeToggle.setAttribute('aria-hidden', 'true');
+			}
+
+			themeSelect.innerHTML = '';
+			activeBrandThemes.forEach(theme => {
+				const option = document.createElement('option');
+				option.value = theme.id;
+				option.textContent = theme.label || theme.name || theme.id;
+				themeSelect.appendChild(option);
+			});
+
+			activeThemeId = pickThemeId(activeBrandThemes, [activeThemeId]);
+			themeSelect.value = activeThemeId || '';
+
+			if (themeSelectMenu && typeof themeSelectMenu.destroy === 'function') {
+				themeSelectMenu.destroy();
+			}
+			themeSelectMenu = createCustomSelect(themeSelect, {
+				formatSelected(option) {
+					return option ? option.textContent : 'Select theme';
+				},
+				formatItem(option) {
+					const item = document.createElement('div');
+					item.textContent = option.textContent;
+					return item;
+				},
+				className: 'theme-select-menu',
+				matchOptionWidth: true,
+				extraWidth: 2
+			});
+			if (themeSelectMenu && typeof themeSelectMenu.update === 'function') {
+				themeSelectMenu.update();
+			}
+		}
+
+		function renderActiveBrand() {
+			if (!activeBrandData) return;
+			let targetBrand = activeBrandData;
+			if (activeBrandThemes.length) {
+				activeThemeId = pickThemeId(activeBrandThemes, [activeThemeId]);
+				targetBrand = buildBrandForTheme(activeBrandData, activeThemeId, activeBrandThemes);
+			}
+			activeThemeId = normalizeThemeId((targetBrand && targetBrand.activeTheme) || activeThemeId);
+			renderBrand(targetBrand);
+			applyDocumentTheme(activeThemeId);
+			updateThemeToggleUI();
+			if (themeControlMode === 'dropdown' && themeSelect && activeBrandThemes.length) {
+				if (themeSelect.value !== (activeThemeId || '')) {
+					themeSelect.value = activeThemeId || '';
+				}
+				if (themeSelectMenu && typeof themeSelectMenu.update === 'function') {
+					themeSelectMenu.update();
+				}
+			}
+		}
+
+		function setActiveBrand(brand, id) {
+			const previousBrandId = activeBrandId;
+			const previousThemeId = activeThemeId;
+			activeBrandId = id || null;
+			activeBrandData = brand || null;
+			activeBrandThemes = getBrandThemes(brand);
+			const defaultThemeId = normalizeThemeId(brand && brand.defaultTheme);
+
+			const candidates = [];
+			if (id && id === previousBrandId && previousThemeId) {
+				candidates.push(previousThemeId);
+			}
+			if (defaultThemeId) {
+				candidates.push(defaultThemeId);
+			}
+
+			activeThemeId = pickThemeId(activeBrandThemes, candidates);
+			updateThemeControls();
+			renderActiveBrand();
+		}
+
+		function setActiveTheme(themeId) {
+			if (!activeBrandThemes.length) return;
+			const resolved = pickThemeId(activeBrandThemes, [themeId, activeThemeId]);
+			if (resolved === activeThemeId) {
+				return;
+			}
+			activeThemeId = resolved;
+			renderActiveBrand();
 		}
 
 		// Render function - re-usable when loading new brand data
@@ -135,6 +380,7 @@
 				logoSection.classList.add('is-hidden');
 			}
 		}
+
 
 		function renderFonts(brand) {
 			const fontSamples = document.getElementById('font-samples');
@@ -725,7 +971,7 @@
 					script.src = `data/${id}.json.js`;
 					script.onload = () => {
 						if (window.BRAND) {
-							renderBrand(window.BRAND);
+							setActiveBrand(window.BRAND, id);
 							resolve(window.BRAND);
 						} else {
 							reject(new Error('brand file did not set window.BRAND'));
@@ -766,6 +1012,21 @@
 				}
 			});
 			document.body._brandHandlersAttached = true;
+		}
+
+		if (themeSelect) {
+			themeSelect.addEventListener('change', (e) => {
+				setActiveTheme(e.target.value);
+			});
+		}
+
+		if (themeToggle) {
+			themeToggle.addEventListener('click', () => {
+				if (themeControlMode !== 'toggle') return;
+				const current = normalizeThemeId(activeThemeId);
+				const next = current === 'dark' ? 'light' : 'dark';
+				setActiveTheme(next);
+			});
 		}
 
 		// When the select changes, load the chosen brand

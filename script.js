@@ -1,4 +1,4 @@
-﻿// script.js - handles rendering and copy-on-click behaviour
+// script.js - handles rendering and copy-on-click behaviour
 (function () {
 	// Wait for DOM
 	function ready(fn) {
@@ -876,6 +876,7 @@
 				const defaultSyncLabel = srSyncLabel ? srSyncLabel.textContent : (loadGoogleFontButton ? loadGoogleFontButton.getAttribute('aria-label') || 'Load from Google Fonts' : 'Load from Google Fonts');
 				const getNormalizedFontFamily = () => (fontFamilyInput && fontFamilyInput.value ? fontFamilyInput.value.trim() : '');
 				let syncedFontFamilyNormalized = '';
+				let committedFontFamily = fontFamilyInput && fontFamilyInput.value ? fontFamilyInput.value : '';
 				let syncButtonState = 'idle';
 
 				const updateSyncButtonLabel = (label) => {
@@ -919,15 +920,20 @@
 				fontFamilyName.addEventListener('click', () => {
 					fontFamilyName.style.display = 'none';
 					fontFamilyInput.style.display = 'inline-block';
+					fontFamilyInput.value = committedFontFamily;
 					fontFamilyInput.focus();
 				});
 
 				fontFamilyInput.addEventListener('blur', () => {
+					const rawValue = fontFamilyInput.value;
+					const nextValue = rawValue && rawValue.trim() ? rawValue.trim() : committedFontFamily;
+					committedFontFamily = nextValue;
+					fontFamilyInput.value = committedFontFamily;
 					fontFamilyName.style.display = 'inline-block';
 					fontFamilyInput.style.display = 'none';
-					fontFamilyName.textContent = fontFamilyInput.value;
+					fontFamilyName.textContent = committedFontFamily;
 					if (fontSampleText) {
-						fontSampleText.style.fontFamily = fontFamilyInput.value;
+						fontSampleText.style.fontFamily = committedFontFamily;
 					}
 					refreshSyncButtonState();
 				});

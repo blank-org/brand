@@ -38,3 +38,7 @@
 - Adopt concise, imperative commit subjects (e.g., `Extract font sample template`), mirroring current history.
 - Reference related issues in commit bodies or PR descriptions (`Fixes #123`) when applicable.
 - PRs should include: scope summary, validation notes (browsers tested, commands run), and screenshots/GIFs for UI changes.
+- Try to keep every commit standalone and atomic.
+- At the end of complete change - provide appropriate commit message that can be used to save to scm, beneath initial line add detailed commit change.
+- Update the APP_FEATURES doc when applicable
+- Testing can be done by opening the brand.html file directly in the browser

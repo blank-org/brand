@@ -1,0 +1,52 @@
+# App Features
+
+## Brand Selection
+- Populates the brand dropdown from `window.BRAND_LIST`.
+- Dynamically loads the selected brand data script from `data/<brandId>.json.js`.
+- Re-renders colours, logo files, typography samples, and icon comparisons when the active brand changes.
+
+## Colour Reference
+- Displays brand colours in a table with colour code, visual swatch, and remark fields.
+- Supports optional serial numbers through `showSerialNumbers`.
+- Copies a colour hex value when a colour row control is clicked.
+- Supports keyboard copy interaction with Enter or Space.
+- Shows temporary copy success or failure feedback in the colour code cell.
+
+## Theme Support
+- Supports optional brand themes through a `themes` array in brand data.
+- Uses a light/dark toggle when the brand has only `light` and `dark` themes.
+- Uses a theme dropdown when a brand exposes multiple named themes.
+- Applies `theme-light` or `theme-dark` body classes based on the active theme.
+- Preserves the selected theme when re-rendering the same brand where possible.
+
+## Logo Files
+- Displays optional brand logo assets from the brand `logos` array.
+- Shows logo previews, names, and supporting metadata such as usage, variant, background, and notes.
+- Links logo cards to files under `data/`.
+- Enables download behavior unless a logo entry sets `download: false`.
+
+## Typography Samples
+- Renders font sample sections from each brand's `fonts` array.
+- Displays editable font family names and applies changes to the sample preview.
+- Supports font weight selection when weights are provided.
+- Supports sample text editing for live preview.
+- Provides colour selection from the brand palette and a native colour picker for custom values.
+- Allows Google Font loading for a named font family and tracks loading, synced, and idle states.
+
+## Icon Comparison
+- Supports optional icon comparison data through `icons`, `iconComparison`, or `iconComparisons`.
+- Groups icon rows by category.
+- Renders icon variants using the Lucide browser runtime.
+- Shows the current icon option and lets users select alternate variants.
+- Supports row highlighting and exclusive row focus to compare one icon row at a time.
+
+## Preview And Controls
+- Provides a preview mode toggle that adds or removes `preview-mode` on the page body.
+- Uses custom-styled select controls while keeping the underlying native selects available to scripts.
+- Closes custom select menus when users click outside them.
+
+## Static Runtime
+- Runs as a static HTML, CSS, and JavaScript app.
+- Requires no bundler, transpiler, or backend service.
+- Can be opened directly through `brand.html`; a simple static server may be used for live reload workflows.
+

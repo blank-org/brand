@@ -512,7 +512,10 @@
 
 				const highlightInput = row.querySelector('.icon-row-highlight');
 				const rowLabel = row.querySelector('.icon-row-label');
-				if (highlightInput) highlightInput.checked = highlightEnabled;
+				if (highlightInput) {
+					highlightInput.classList.toggle('is-active', highlightEnabled);
+					highlightInput.setAttribute('aria-pressed', highlightEnabled ? 'true' : 'false');
+				}
 				if (rowLabel) {
 					rowLabel.classList.toggle('is-exclusive', rowIsExclusive);
 					rowLabel.setAttribute('aria-pressed', rowIsExclusive ? 'true' : 'false');
@@ -573,11 +576,6 @@
 				controlLabel.className = 'icon-control-label';
 				controlLabel.setAttribute('aria-label', 'Highlight');
 				controlLabel.title = 'Highlight';
-				const controlIcon = document.createElement('i');
-				controlIcon.className = 'material-icons';
-				controlIcon.setAttribute('aria-hidden', 'true');
-				controlIcon.textContent = 'highlight';
-				controlLabel.appendChild(controlIcon);
 				header.appendChild(controlLabel);
 				content.appendChild(header);
 
@@ -639,14 +637,20 @@
 						row.appendChild(button);
 					});
 
-					const highlightCell = document.createElement('label');
+					const highlightCell = document.createElement('div');
 					highlightCell.className = 'icon-control-cell';
-					const highlightInput = document.createElement('input');
-					highlightInput.type = 'checkbox';
+					const highlightInput = document.createElement('button');
+					highlightInput.type = 'button';
 					highlightInput.className = 'icon-row-highlight';
 					highlightInput.setAttribute('aria-label', `Highlight ${rowData.label}`);
-					highlightInput.addEventListener('change', (event) => {
-						highlightedIconRows[rowKey] = event.target.checked;
+					highlightInput.setAttribute('aria-pressed', 'false');
+					const highlightIcon = document.createElement('i');
+					highlightIcon.className = 'material-icons';
+					highlightIcon.setAttribute('aria-hidden', 'true');
+					highlightIcon.textContent = 'highlight';
+					highlightInput.appendChild(highlightIcon);
+					highlightInput.addEventListener('click', () => {
+						highlightedIconRows[rowKey] = highlightedIconRows[rowKey] !== true;
 						updateIconComparisonState();
 					});
 					highlightCell.appendChild(highlightInput);

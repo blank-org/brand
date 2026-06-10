@@ -502,10 +502,6 @@ body.preview-mode .icon-option-card.is-selected {
 	color: var(--muted-text);
 }
 
-.icon-control-label i {
-	font-size: 20px;
-}
-
 .icon-comparison-row {
 	margin-top: 12px;
 }
@@ -645,11 +641,37 @@ body.preview-mode .icon-option-card.is-selected {
 	transition: filter 0.2s ease, opacity 0.2s ease;
 }
 
-.icon-control-cell input {
-	width: 20px;
-	height: 20px;
-	accent-color: var(--accent-primary);
+.icon-row-highlight {
+	display: grid;
+	place-items: center;
+	width: 40px;
+	height: 40px;
+	border: 0;
+	border-radius: 8px;
+	background: transparent;
+	color: var(--muted-text);
 	cursor: pointer;
+	opacity: 0.45;
+	transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.icon-row-highlight:hover,
+.icon-row-highlight:focus-visible {
+	color: var(--body-text);
+	opacity: 0.8;
+	outline: none;
+}
+
+.icon-row-highlight.is-active {
+	background: transparent;
+	color: var(--body-text);
+	opacity: 1;
+	box-shadow: none;
+}
+
+.icon-row-highlight i {
+	font-size: 22px;
+	line-height: 1;
 }
 
 .brand-selector {

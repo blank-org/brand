@@ -310,6 +310,23 @@ body.preview-mode #preview-toggle {
 	font-size: 24px;
 }
 
+.index-toggle {
+	font-size: 20px;
+	font-weight: 700;
+	line-height: 1;
+}
+
+body:not(.preview-mode) .index-toggle {
+	visibility: hidden;
+	opacity: 0;
+	pointer-events: none;
+}
+
+body.preview-mode.preview-indexes .index-toggle {
+	opacity: 1;
+	color: var(--icon-color-active);
+}
+
 body.preview-mode .select-custom .select-items,
 body.preview-mode .select-custom .select-selected:after {
 	display: none;
@@ -347,6 +364,7 @@ body.preview-mode .theme-selector .select-selected {
 body.preview-mode .font-card-actions .font-controls,
 body.preview-mode .font-card-actions .color-picker-container,
 body.preview-mode .font-card-actions .select-custom,
+body.preview-mode .font-source-column,
 body.preview-mode .font-source-toggles,
 body.preview-mode .font-card-meta .font-family-input,
 body.preview-mode .icon-comparison-header,
@@ -391,11 +409,27 @@ body.preview-mode .icon-option-card[data-preview-selected="true"] {
 	pointer-events: none;
 }
 
+body.preview-mode .font-index-label,
+body.preview-mode .icon-alpha-cell,
+body.preview-mode table td.serial {
+	visibility: hidden;
+	opacity: 0;
+	pointer-events: none;
+}
+
 body.preview-mode .icon-alpha-cell {
 	grid-column: 4;
 	position: sticky;
 	right: 0;
 	background: var(--surface-bg);
+}
+
+body.preview-mode.preview-indexes .font-index-label,
+body.preview-mode.preview-indexes .icon-alpha-cell,
+body.preview-mode.preview-indexes table td.serial {
+	visibility: visible;
+	opacity: 1;
+	pointer-events: auto;
 }
 
 .header-row {
@@ -1084,6 +1118,7 @@ footer.site-footer {
 }
 
 .font-card {
+	position: relative;
 	padding: 24px 28px;
 	border: 1px solid var(--card-border);
 	border-radius: 16px;
@@ -1264,6 +1299,22 @@ footer.site-footer {
 	align-items: center;
 	justify-content: flex-start;
 	flex: 0 0 auto;
+}
+
+.font-index-label {
+	position: absolute;
+	top: 16px;
+	right: 18px;
+	display: grid;
+	place-items: center;
+	min-width: 1.5rem;
+	min-height: 36px;
+	font-size: 13px;
+	font-weight: 700;
+	color: var(--muted-text);
+	visibility: hidden;
+	opacity: 0;
+	pointer-events: none;
 }
 
 .font-family-name {

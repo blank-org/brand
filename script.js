@@ -37,14 +37,36 @@
 		const ICON_VARIANT_LIMIT = 5;
 
 		const previewToggle = document.getElementById('preview-toggle');
+		const indexToggle = document.getElementById('index-toggle');
+		const updateIndexToggleState = () => {
+			if (!indexToggle || !body) return;
+			const isPreviewMode = body.classList.contains('preview-mode');
+			const showsIndexes = body.classList.contains('preview-indexes');
+			indexToggle.setAttribute('aria-pressed', showsIndexes ? 'true' : 'false');
+			indexToggle.setAttribute('aria-label', showsIndexes ? 'Hide indexes' : 'Show indexes');
+			indexToggle.setAttribute('aria-hidden', isPreviewMode ? 'false' : 'true');
+			indexToggle.tabIndex = isPreviewMode ? 0 : -1;
+		};
+		if (indexToggle) {
+			indexToggle.addEventListener('click', () => {
+				if (!body || !body.classList.contains('preview-mode')) return;
+				body.classList.toggle('preview-indexes');
+				updateIndexToggleState();
+				updateIconComparisonState();
+			});
+		}
 		if (previewToggle) {
 			const updatePreviewToggleState = () => {
 				const isActive = body && body.classList.contains('preview-mode');
 				previewToggle.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+				updateIndexToggleState();
 			};
 			const togglePreviewMode = () => {
 				if (!body) return;
 				body.classList.toggle('preview-mode');
+				if (!body.classList.contains('preview-mode')) {
+					body.classList.remove('preview-indexes');
+				}
 				updatePreviewToggleState();
 				updateIconComparisonState();
 			};
@@ -57,6 +79,7 @@
 			});
 			updatePreviewToggleState();
 		}
+		updateIndexToggleState();
 
 		// Ensure the H3 shows the global company/brand name and is unaffected by the brand selector
 		if (heading && window.brand) heading.textContent = window.brand;
@@ -1016,6 +1039,14 @@
 					fontSampleDiv.innerHTML = '';
 				} else {
 					fontSampleDiv.innerHTML = window.fontSampleTemplate({ font, sampleText, color });
+				}
+
+				const fontCardFooter = fontSampleDiv.querySelector('.font-card-footer');
+				if (fontCardFooter) {
+					const fontIndex = document.createElement('div');
+					fontIndex.className = 'font-index-label';
+					fontIndex.textContent = String(index + 1);
+					fontCardFooter.insertBefore(fontIndex, fontCardFooter.firstChild);
 				}
 
 				const fontSampleText = fontSampleDiv.querySelector('.font-sample-text');

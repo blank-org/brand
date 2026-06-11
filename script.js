@@ -34,6 +34,8 @@
 		const highlightedIconRows = {};
 		let exclusiveIconRowKey = null;
 		let pendingIconInputFocus = null;
+		let draggedIconVariant = null;
+		let draggedIconRow = null;
 		const ICON_VARIANT_LIMIT = 5;
 
 		const previewToggle = document.getElementById('preview-toggle');
@@ -556,7 +558,7 @@
 		function getIconGroups(brand) {
 			const source = brand && (brand.icons || brand.iconComparison || brand.iconComparisons);
 			if (!Array.isArray(source)) return [];
-			function addIconRow(acc, item, parentCategory) {
+			function addIconRow(acc, item, parentCategory, sourceRows) {
 				if (!item) return;
 				const label = normalizeIconName(item.label || item.name);
 				const category = normalizeIconName(parentCategory || item.category || item.location || item.group || 'Icons');
@@ -577,17 +579,17 @@
 				const currentIndex = item.currentIndex === undefined || item.currentIndex === null
 					? (firstActiveVariant ? firstActiveVariant.index : '')
 					: item.currentIndex;
-				acc.push({ label, category, currentIndex, variants, sourceRow: item });
+				acc.push({ label, category, currentIndex, variants, sourceRow: item, sourceRows });
 			}
 			return source.reduce((acc, item) => {
 				if (!item) return acc;
 				const parentCategory = normalizeIconName(item.category || item.location || item.group);
 				const children = item.rows || item.items || item.icons;
 				if (Array.isArray(children)) {
-					children.forEach(child => addIconRow(acc, child, parentCategory));
+					children.forEach(child => addIconRow(acc, child, parentCategory, children));
 					return acc;
 				}
-				addIconRow(acc, item, parentCategory);
+				addIconRow(acc, item, parentCategory, source);
 				return acc;
 			}, []);
 		}
@@ -715,6 +717,157 @@
 			renderActiveBrand();
 		}
 
+		function sortIconSourceVariants(rowData) {
+			const variants = ensureIconSourceVariants(rowData);
+			variants.sort((a, b) => {
+				const aIndex = a && a.index;
+				const bIndex = b && b.index;
+				const aNumber = Number(aIndex);
+				const bNumber = Number(bIndex);
+				if (!Number.isNaN(aNumber) && !Number.isNaN(bNumber)) return aNumber - bNumber;
+				return String(aIndex).localeCompare(String(bIndex));
+			});
+		}
+
+		function moveIconVariant(rowData, fromIndex, toIndex) {
+			if (!rowData || String(fromIndex) === String(toIndex)) return;
+			const variants = ensureIconSourceVariants(rowData);
+			const fromVariant = variants.find(variant => variant && String(variant.index) === String(fromIndex));
+			if (!fromVariant) return;
+			const toVariant = variants.find(variant => variant && String(variant.index) === String(toIndex));
+			const rowKey = getIconRowKey(rowData.category, rowData.label);
+			const selectedIndex = selectedIconIndexes[rowKey];
+			const currentIndex = rowData.sourceRow ? rowData.sourceRow.currentIndex : undefined;
+
+			fromVariant.index = toIndex;
+			if (toVariant) {
+				toVariant.index = fromIndex;
+			}
+
+			if (String(selectedIndex) === String(fromIndex)) {
+				selectedIconIndexes[rowKey] = toIndex;
+			} else if (toVariant && String(selectedIndex) === String(toIndex)) {
+				selectedIconIndexes[rowKey] = fromIndex;
+			}
+
+			if (rowData.sourceRow && String(currentIndex) === String(fromIndex)) {
+				rowData.sourceRow.currentIndex = toIndex;
+			} else if (rowData.sourceRow && toVariant && String(currentIndex) === String(toIndex)) {
+				rowData.sourceRow.currentIndex = fromIndex;
+			}
+
+			sortIconSourceVariants(rowData);
+			renderActiveBrand();
+		}
+
+		function moveIconRow(fromRowKey, targetRowData) {
+			if (!fromRowKey || !targetRowData || !Array.isArray(targetRowData.sourceRows)) return;
+			const rows = targetRowData.sourceRows;
+			const targetRowKey = getIconRowKey(targetRowData.category, targetRowData.label);
+			if (fromRowKey === targetRowKey) return;
+			const fromIndex = rows.findIndex(row => row && getIconRowKey(
+				normalizeIconName(row.category || row.location || row.group || targetRowData.category || 'Icons'),
+				normalizeIconName(row.label || row.name)
+			) === fromRowKey);
+			const targetIndex = rows.indexOf(targetRowData.sourceRow);
+			if (fromIndex < 0 || targetIndex < 0) return;
+			const moved = rows.splice(fromIndex, 1)[0];
+			const insertIndex = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
+			rows.splice(insertIndex, 0, moved);
+			renderActiveBrand();
+		}
+
+		function getDraggedIconPayload(e) {
+			if (!e || !e.dataTransfer) return draggedIconVariant;
+			const text = e.dataTransfer.getData('application/x-brand-icon');
+			if (!text) return draggedIconVariant;
+			try {
+				return JSON.parse(text);
+			} catch (err) {
+				return draggedIconVariant;
+			}
+		}
+
+		function getDraggedIconRowPayload(e) {
+			if (!e || !e.dataTransfer) return draggedIconRow;
+			const text = e.dataTransfer.getData('application/x-brand-icon-row');
+			if (!text) return draggedIconRow;
+			try {
+				return JSON.parse(text);
+			} catch (err) {
+				return draggedIconRow;
+			}
+		}
+
+		function clearIconDragState() {
+			if (iconComparisonList) {
+				iconComparisonList.querySelectorAll('.is-dragging, .is-drag-target').forEach(element => {
+					element.classList.remove('is-dragging', 'is-drag-target');
+					if (element.classList.contains('icon-option-card')) {
+						element.setAttribute('aria-grabbed', 'false');
+					}
+				});
+			}
+			draggedIconVariant = null;
+		}
+
+		function clearIconRowDragState() {
+			if (iconComparisonList) {
+				iconComparisonList.querySelectorAll('.is-row-dragging, .is-row-drag-target').forEach(element => {
+					element.classList.remove('is-row-dragging', 'is-row-drag-target');
+				});
+			}
+			draggedIconRow = null;
+		}
+
+		function bindIconDropTarget(element, rowData, rowKey, targetIndex) {
+			if (!element) return;
+			element.addEventListener('dragover', (e) => {
+				const payload = draggedIconVariant;
+				if (!payload || payload.rowKey !== rowKey || String(payload.index) === String(targetIndex)) return;
+				e.preventDefault();
+				e.stopPropagation();
+				if (e.dataTransfer) {
+					e.dataTransfer.dropEffect = 'move';
+				}
+				element.classList.add('is-drag-target');
+			});
+			element.addEventListener('dragleave', () => {
+				element.classList.remove('is-drag-target');
+			});
+			element.addEventListener('drop', (e) => {
+				const payload = getDraggedIconPayload(e);
+				if (!payload || payload.rowKey !== rowKey || String(payload.index) === String(targetIndex)) return;
+				e.preventDefault();
+				e.stopPropagation();
+				clearIconDragState();
+				moveIconVariant(rowData, payload.index, targetIndex);
+			});
+		}
+
+		function bindIconRowDropTarget(row, rowData, rowKey) {
+			if (!row || !rowData) return;
+			row.addEventListener('dragover', (e) => {
+				const payload = draggedIconRow;
+				if (!payload || payload.rowKey === rowKey || payload.category !== rowData.category) return;
+				e.preventDefault();
+				if (e.dataTransfer) {
+					e.dataTransfer.dropEffect = 'move';
+				}
+				row.classList.add('is-row-drag-target');
+			});
+			row.addEventListener('dragleave', () => {
+				row.classList.remove('is-row-drag-target');
+			});
+			row.addEventListener('drop', (e) => {
+				const payload = getDraggedIconRowPayload(e);
+				if (!payload || payload.rowKey === rowKey || payload.category !== rowData.category) return;
+				e.preventDefault();
+				clearIconRowDragState();
+				moveIconRow(payload.rowKey, rowData);
+			});
+		}
+
 		function applyIconGridColumns(element, count) {
 			if (!element) return;
 			element.style.gridTemplateColumns = `6.5rem repeat(${count}, 8rem) 6rem 1.5rem`;
@@ -840,10 +993,31 @@
 					row.dataset.rowKey = rowKey;
 					row.dataset.currentIndex = rowData.currentIndex;
 					applyIconGridColumns(row, indexes.length);
+					row.draggable = true;
+					bindIconRowDropTarget(row, rowData, rowKey);
+					row.addEventListener('dragstart', (e) => {
+						if (!e.target.closest('.icon-row-label, .icon-alpha-cell')) {
+							e.preventDefault();
+							return;
+						}
+						draggedIconRow = {
+							rowKey,
+							category: group.category
+						};
+						row.classList.add('is-row-dragging');
+						if (e.dataTransfer) {
+							const payload = JSON.stringify(draggedIconRow);
+							e.dataTransfer.effectAllowed = 'move';
+							e.dataTransfer.setData('application/x-brand-icon-row', payload);
+							e.dataTransfer.setData('text/plain', payload);
+						}
+					});
+					row.addEventListener('dragend', clearIconRowDragState);
 
 					const nameCell = document.createElement('button');
 					nameCell.type = 'button';
 					nameCell.className = 'icon-row-label';
+					nameCell.title = 'Drag to reorder';
 					nameCell.textContent = rowData.label;
 					nameCell.setAttribute('aria-label', `Exclusively highlight ${rowData.label}`);
 					nameCell.addEventListener('click', () => {
@@ -860,6 +1034,7 @@
 							empty.className = 'icon-option-empty';
 							empty.setAttribute('aria-label', `Add ${rowData.label} option ${index}`);
 							empty.title = 'Add icon';
+							bindIconDropTarget(empty, rowData, rowKey, index);
 							const addIcon = document.createElement('i');
 							addIcon.className = 'material-icons';
 							addIcon.setAttribute('aria-hidden', 'true');
@@ -876,6 +1051,37 @@
 						card.className = 'icon-option-card';
 						card.dataset.rowKey = rowKey;
 						card.dataset.iconIndex = variant.index;
+						card.draggable = true;
+						card.setAttribute('aria-grabbed', 'false');
+						bindIconDropTarget(card, rowData, rowKey, variant.index);
+						card.addEventListener('dragstart', (e) => {
+							e.stopPropagation();
+							if (e.target.closest('.icon-option-name, .icon-option-clear')) {
+								e.preventDefault();
+								return;
+							}
+							draggedIconVariant = {
+								rowKey,
+								index: String(variant.index)
+							};
+							card.classList.add('is-dragging');
+							card.setAttribute('aria-grabbed', 'true');
+							if (e.dataTransfer) {
+								const payload = JSON.stringify(draggedIconVariant);
+								e.dataTransfer.effectAllowed = 'move';
+								e.dataTransfer.setData('application/x-brand-icon', payload);
+								e.dataTransfer.setData('text/plain', payload);
+							}
+						});
+						card.addEventListener('dragend', clearIconDragState);
+						const pauseCardDrag = () => {
+							card.draggable = false;
+						};
+						const resumeCardDrag = () => {
+							window.setTimeout(() => {
+								card.draggable = true;
+							}, 0);
+						};
 
 						const iconBox = document.createElement('span');
 						iconBox.className = 'icon-option-symbol';
@@ -907,12 +1113,15 @@
 						input.addEventListener('focus', () => {
 							card.classList.add('is-editing');
 						});
+						input.addEventListener('mousedown', pauseCardDrag);
+						input.addEventListener('mouseup', resumeCardDrag);
 						input.addEventListener('blur', () => {
 							window.setTimeout(() => {
 								if (!card.contains(document.activeElement)) {
 									card.classList.remove('is-editing');
 								}
 							}, 0);
+							resumeCardDrag();
 						});
 						input.addEventListener('blur', commitInput);
 						input.addEventListener('keydown', (e) => {
@@ -947,7 +1156,9 @@
 						clearButton.appendChild(clearIcon);
 						clearButton.addEventListener('mousedown', (e) => {
 							e.preventDefault();
+							pauseCardDrag();
 						});
+						clearButton.addEventListener('mouseup', resumeCardDrag);
 						clearButton.addEventListener('click', (e) => {
 							e.stopPropagation();
 							committed = true;

@@ -595,7 +595,23 @@ body.preview-mode.preview-indexes table td.serial {
 }
 
 .icon-comparison-row {
+	position: relative;
 	margin-top: 12px;
+}
+
+.icon-comparison-row.is-row-dragging {
+	opacity: 0.55;
+}
+
+.icon-comparison-row.is-row-drag-target::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: -6px;
+	height: 3px;
+	border-radius: 999px;
+	background: var(--accent-primary);
 }
 
 .icon-row-label {
@@ -655,6 +671,20 @@ body.preview-mode.preview-indexes table td.serial {
 .icon-option-card:focus-visible {
 	border-color: var(--accent-primary);
 	outline: none;
+}
+
+.icon-option-card.is-dragging {
+	opacity: 0.55;
+	border-style: dashed;
+	cursor: grabbing;
+}
+
+.icon-option-card.is-drag-target,
+.icon-option-empty.is-drag-target {
+	border-color: var(--accent-primary);
+	background: var(--accent-muted-bg);
+	box-shadow: inset 0 0 0 2px var(--accent-primary);
+	opacity: 1;
 }
 
 .icon-option-card.is-selected {

@@ -36,6 +36,7 @@
 		let pendingIconInputFocus = null;
 		let draggedIconVariant = null;
 		let draggedIconRow = null;
+		let clearIconEmptyRemoveHoverSuppression = null;
 		const ICON_VARIANT_LIMIT = 5;
 
 		const previewToggle = document.getElementById('preview-toggle');
@@ -696,13 +697,76 @@
 			renderActiveBrand();
 		}
 
+		function getShiftedIconIndex(value, removedIndex) {
+			const valueNumber = Number(value);
+			const removedNumber = Number(removedIndex);
+			if (!Number.isFinite(valueNumber) || !Number.isFinite(removedNumber)) return value;
+			if (valueNumber <= removedNumber) return value;
+			return valueNumber - 1;
+		}
+
+		function hasIconVariantAfterIndex(rowData, index) {
+			const variants = ensureIconSourceVariants(rowData);
+			const targetNumber = Number(index);
+			if (!Number.isFinite(targetNumber)) return false;
+			return variants.some(variant => {
+				const variantNumber = Number(variant && variant.index);
+				return Number.isFinite(variantNumber) && variantNumber > targetNumber;
+			});
+		}
+
+		function removeIconVariantSlot(rowData, index) {
+			if (!rowData || !rowData.sourceRow) return;
+			const variants = ensureIconSourceVariants(rowData);
+			const removedNumber = Number(index);
+			if (!Number.isFinite(removedNumber)) {
+				commitIconVariantName(rowData, index, '');
+				return;
+			}
+
+			rowData.sourceRow.variants = variants.reduce((acc, variant) => {
+				if (!variant || String(variant.index) === String(index)) return acc;
+				const variantNumber = Number(variant.index);
+				if (Number.isFinite(variantNumber) && variantNumber > removedNumber) {
+					variant.index = variantNumber - 1;
+				}
+				acc.push(variant);
+				return acc;
+			}, []);
+
+			const rowKey = getIconRowKey(rowData.category, rowData.label);
+			if (selectedIconIndexes[rowKey] !== undefined) {
+				if (String(selectedIconIndexes[rowKey]) === String(index)) {
+					delete selectedIconIndexes[rowKey];
+				} else {
+					selectedIconIndexes[rowKey] = getShiftedIconIndex(selectedIconIndexes[rowKey], index);
+				}
+			}
+
+			if (rowData.sourceRow.currentIndex !== undefined) {
+				if (String(rowData.sourceRow.currentIndex) === String(index)) {
+					const nextVariant = rowData.sourceRow.variants.find(variant => normalizeIconName(variant.icon || variant.name || variant.component));
+					if (nextVariant) {
+						rowData.sourceRow.currentIndex = nextVariant.index;
+					} else {
+						delete rowData.sourceRow.currentIndex;
+					}
+				} else {
+					rowData.sourceRow.currentIndex = getShiftedIconIndex(rowData.sourceRow.currentIndex, index);
+				}
+			}
+
+			sortIconSourceVariants(rowData);
+			renderActiveBrand();
+		}
+
 		function clearIconVariantName(rowData, index) {
 			const variants = ensureIconSourceVariants(rowData);
 			const match = variants.find(variant => variant && String(variant.index) === String(index));
 			if (!match) return;
 			const isAlreadyEmpty = !normalizeIconName(match.icon || match.name || match.component);
 			if (isAlreadyEmpty) {
-				commitIconVariantName(rowData, index, '');
+				removeIconVariantSlot(rowData, index);
 				return;
 			}
 			match.icon = '';
@@ -757,6 +821,7 @@
 			}
 
 			sortIconSourceVariants(rowData);
+			suppressIconEmptyRemoveHoverUntilPointerMove();
 			renderActiveBrand();
 		}
 
@@ -818,6 +883,27 @@
 				});
 			}
 			draggedIconRow = null;
+		}
+
+		function suppressIconEmptyRemoveHoverUntilPointerMove() {
+			if (!iconComparisonList) return;
+			iconComparisonList.classList.add('is-empty-remove-hover-suppressed');
+			if (clearIconEmptyRemoveHoverSuppression) {
+				clearIconEmptyRemoveHoverSuppression();
+			}
+
+			let cleared = false;
+			clearIconEmptyRemoveHoverSuppression = () => {
+				if (cleared) return;
+				cleared = true;
+				iconComparisonList.classList.remove('is-empty-remove-hover-suppressed');
+				window.removeEventListener('pointermove', clearIconEmptyRemoveHoverSuppression);
+				window.removeEventListener('mousemove', clearIconEmptyRemoveHoverSuppression);
+				clearIconEmptyRemoveHoverSuppression = null;
+			};
+
+			window.addEventListener('pointermove', clearIconEmptyRemoveHoverSuppression);
+			window.addEventListener('mousemove', clearIconEmptyRemoveHoverSuppression);
 		}
 
 		function bindIconDropTarget(element, rowData, rowKey, targetIndex) {
@@ -1029,20 +1115,42 @@
 					indexes.forEach(index => {
 						const variant = getIconVariantByIndex(rowData, index);
 						if (!variant) {
-							const empty = document.createElement('button');
-							empty.type = 'button';
-							empty.className = 'icon-option-empty';
-							empty.setAttribute('aria-label', `Add ${rowData.label} option ${index}`);
-							empty.title = 'Add icon';
+							const shouldShiftRemainingIcons = hasIconVariantAfterIndex(rowData, index);
+							const empty = document.createElement('div');
+							empty.className = `icon-option-empty ${shouldShiftRemainingIcons ? 'is-remove' : 'is-add'}`;
 							bindIconDropTarget(empty, rowData, rowKey, index);
+
+							const addButton = document.createElement('button');
+							addButton.type = 'button';
+							addButton.className = 'icon-option-empty-add';
+							addButton.setAttribute('aria-label', `Add ${rowData.label} option ${index}`);
+							addButton.title = 'Add icon';
 							const addIcon = document.createElement('i');
 							addIcon.className = 'material-icons';
 							addIcon.setAttribute('aria-hidden', 'true');
 							addIcon.textContent = 'add';
-							empty.appendChild(addIcon);
-							empty.addEventListener('click', () => {
+							addButton.appendChild(addIcon);
+							addButton.addEventListener('click', () => {
 								addIconVariant(rowData, index);
 							});
+							empty.appendChild(addButton);
+
+							if (shouldShiftRemainingIcons) {
+								const removeButton = document.createElement('button');
+								removeButton.type = 'button';
+								removeButton.className = 'icon-option-clear icon-option-empty-remove is-remove';
+								removeButton.setAttribute('aria-label', `Remove ${rowData.label} empty option ${index} and shift later icons`);
+								removeButton.title = 'Remove empty slot';
+								const removeIcon = document.createElement('i');
+								removeIcon.setAttribute('aria-hidden', 'true');
+								removeIcon.setAttribute('data-lucide', 'x');
+								removeButton.appendChild(removeIcon);
+								removeButton.addEventListener('click', (e) => {
+									e.stopPropagation();
+									removeIconVariantSlot(rowData, index);
+								});
+								empty.appendChild(removeButton);
+							}
 							row.appendChild(empty);
 							return;
 						}

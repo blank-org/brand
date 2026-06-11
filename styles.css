@@ -816,6 +816,7 @@ body.preview-mode.preview-indexes table td.serial {
 }
 
 .icon-option-empty {
+	position: relative;
 	display: grid;
 	place-items: center;
 	min-height: 112px;
@@ -823,20 +824,54 @@ body.preview-mode.preview-indexes table td.serial {
 	border: 1px dashed var(--surface-border);
 	background: transparent;
 	color: var(--muted-text);
-	cursor: pointer;
 	opacity: 0.5;
 	transition: border-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
 }
 
 .icon-option-empty:hover,
-.icon-option-empty:focus-visible {
+.icon-option-empty:focus-within {
 	border-color: var(--accent-primary);
 	color: var(--accent-primary);
 	opacity: 1;
+}
+
+.icon-option-empty-add {
+	display: grid;
+	place-items: center;
+	border: 0;
+	background: transparent;
+	color: inherit;
+	cursor: pointer;
+}
+
+.icon-option-empty-add {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+}
+
+.icon-option-empty-add:focus-visible,
+.icon-option-empty-remove:focus-visible {
 	outline: none;
 }
 
-.icon-option-empty i {
+.icon-option-empty:hover .icon-option-empty-remove,
+.icon-option-empty:focus-within .icon-option-empty-remove {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+.icon-comparison-list.is-empty-remove-hover-suppressed .icon-option-empty:hover:not(:focus-within) .icon-option-empty-remove {
+	opacity: 0;
+	pointer-events: none;
+}
+
+.icon-option-empty-add i,
+.icon-option-empty-add svg {
+	display: block;
+	width: 24px;
+	height: 24px;
 	font-size: 24px;
 }
 

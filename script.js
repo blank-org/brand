@@ -46,6 +46,7 @@
 				if (!body) return;
 				body.classList.toggle('preview-mode');
 				updatePreviewToggleState();
+				updateIconComparisonState();
 			};
 			previewToggle.addEventListener('click', togglePreviewMode);
 			previewToggle.addEventListener('keydown', (e) => {
@@ -693,7 +694,7 @@
 
 		function applyIconGridColumns(element, count) {
 			if (!element) return;
-			element.style.gridTemplateColumns = `8rem repeat(${count}, 8rem) 6rem`;
+			element.style.gridTemplateColumns = `6.5rem repeat(${count}, 8rem) 6rem 1.5rem`;
 		}
 
 		function refreshLucideIcons(root) {
@@ -716,6 +717,7 @@
 
 		function updateIconComparisonState() {
 			if (!iconComparisonList) return;
+			const isPreviewMode = body && body.classList.contains('preview-mode');
 			const exclusiveActive = exclusiveIconRowKey !== null;
 			const rows = iconComparisonList.querySelectorAll('.icon-comparison-row');
 			rows.forEach(row => {
@@ -747,9 +749,10 @@
 					const isHighlighted = isSelected && (!exclusiveActive || rowIsExclusive);
 					const currentIsDifferent = String(selectedIndex) !== String(currentIndex);
 					const cardIsBlurred = exclusiveActive ? !isHighlighted : (highlightEnabled && !isSelected);
-					card.classList.toggle('is-selected', isHighlighted);
+					card.classList.toggle('is-selected', !isPreviewMode && isHighlighted);
 					card.classList.toggle('is-current-faded', isCurrent && currentIsDifferent);
 					card.classList.toggle('is-blurred', cardIsBlurred);
+					card.dataset.previewSelected = isHighlighted ? 'true' : 'false';
 					card.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
 				});
 			});
@@ -797,6 +800,10 @@
 				controlLabel.setAttribute('aria-label', 'Highlight');
 				controlLabel.title = 'Highlight';
 				header.appendChild(controlLabel);
+				const alphaSpacer = document.createElement('div');
+				alphaSpacer.className = 'icon-alpha-label';
+				alphaSpacer.setAttribute('aria-hidden', 'true');
+				header.appendChild(alphaSpacer);
 				content.appendChild(header);
 
 				group.rows.forEach((rowData, rowIndex) => {
@@ -814,7 +821,7 @@
 					const nameCell = document.createElement('button');
 					nameCell.type = 'button';
 					nameCell.className = 'icon-row-label';
-					nameCell.textContent = `${String.fromCharCode(65 + rowIndex)}. ${rowData.label}`;
+					nameCell.textContent = rowData.label;
 					nameCell.setAttribute('aria-label', `Exclusively highlight ${rowData.label}`);
 					nameCell.addEventListener('click', () => {
 						exclusiveIconRowKey = exclusiveIconRowKey === rowKey ? null : rowKey;
@@ -946,6 +953,11 @@
 					});
 					highlightCell.appendChild(highlightInput);
 					row.appendChild(highlightCell);
+
+					const alphaCell = document.createElement('div');
+					alphaCell.className = 'icon-alpha-cell';
+					alphaCell.textContent = String.fromCharCode(65 + rowIndex);
+					row.appendChild(alphaCell);
 
 					content.appendChild(row);
 				});

@@ -175,6 +175,7 @@ select,
 .font-controls,
 .font-source-toggles,
 .icon-comparison-header,
+.icon-alpha-cell,
 .icon-control-cell,
 .icon-option-card,
 .header-actions,
@@ -198,6 +199,11 @@ textarea,
 	margin: auto;
 	clear: both;
 	margin-bottom: 24px;
+}
+
+table.sections,
+.icon-comparison.sections {
+	width: calc(100% - 32px);
 }
 
 .sr-only {
@@ -372,16 +378,24 @@ body.preview-mode .icon-comparison-content {
 }
 
 body.preview-mode .icon-comparison-row {
-	grid-template-columns: minmax(8rem, 14rem) minmax(8rem, 12rem) !important;
+	grid-template-columns: minmax(6.5rem, 14rem) minmax(8rem, 12rem) minmax(1rem, 1fr) 1.5rem !important;
+	width: 100%;
 }
 
-body.preview-mode .icon-option-card:not(.is-selected),
+body.preview-mode .icon-option-card:not([data-preview-selected="true"]),
 body.preview-mode .icon-option-empty {
 	display: none;
 }
 
-body.preview-mode .icon-option-card.is-selected {
+body.preview-mode .icon-option-card[data-preview-selected="true"] {
 	pointer-events: none;
+}
+
+body.preview-mode .icon-alpha-cell {
+	grid-column: 4;
+	position: sticky;
+	right: 0;
+	background: var(--surface-bg);
 }
 
 .header-row {
@@ -532,6 +546,8 @@ body.preview-mode .icon-option-card.is-selected {
 }
 
 .icon-index-label,
+.icon-alpha-label,
+.icon-alpha-cell,
 .icon-control-label {
 	display: grid;
 	place-items: center;
@@ -767,6 +783,10 @@ body.preview-mode .icon-option-card.is-selected {
 	justify-content: center;
 	min-height: 112px;
 	transition: filter 0.2s ease, opacity 0.2s ease;
+}
+
+.icon-alpha-cell {
+	min-height: 112px;
 }
 
 .icon-row-highlight {

@@ -56,7 +56,7 @@
 
 		// Ensure the H3 shows the global company/brand name and is unaffected by the brand selector
 		if (heading && window.brand) heading.textContent = window.brand;
-		if (footer && window.brand) footer.textContent = window.brand;
+		if (footer && window.brand) footer.textContent = `Copyright © ${new Date().getFullYear()} ${window.brand}`;
 
 		function copyText(text) {
 			if (!text) return Promise.reject(new Error('no text'));

@@ -409,10 +409,6 @@ body.preview-mode .icon-option-card[data-preview-selected="true"] {
 	pointer-events: none;
 }
 
-body.preview-mode .icon-option-name {
-	border-bottom-color: transparent;
-}
-
 body.preview-mode .font-index-label,
 body.preview-mode .icon-alpha-cell,
 body.preview-mode table td.serial {
@@ -745,7 +741,7 @@ body.preview-mode.preview-indexes table td.serial {
 	width: 100%;
 	min-width: 0;
 	border: 0;
-	border-bottom: 1px solid var(--surface-border);
+	border-bottom: 1px solid transparent;
 	border-radius: 0;
 	padding: 5px 0;
 	background: transparent;
@@ -759,7 +755,6 @@ body.preview-mode.preview-indexes table td.serial {
 
 .icon-option-name:hover,
 .icon-option-name:focus {
-	border-bottom-color: var(--surface-border);
 	color: var(--body-text);
 	outline: none;
 }

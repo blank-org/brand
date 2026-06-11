@@ -5,6 +5,7 @@
 - Dynamically loads the selected brand data script from `data/<brandId>.json.js`.
 - Re-renders colours, logo files, typography samples, and icon comparisons when the active brand changes.
 - Restores the last selected brand from localStorage across page reloads.
+- Exports the active brand data as a downloadable `window.BRAND` JSON script.
 
 ## Colour Reference
 - Displays brand colours in a table with colour code, visual swatch, and remark fields.
@@ -30,6 +31,7 @@
 ## Typography Samples
 - Renders font sample sections from each brand's `fonts` array.
 - Displays editable font family names and applies changes to the sample preview.
+- Saves edited font family, sample text, and colour choices into exported brand data.
 - Supports font weight selection when weights are provided.
 - Supports sample text editing for live preview.
 - Provides colour selection from the brand palette and a native colour picker for custom values.
@@ -45,6 +47,7 @@
 - Removes an icon variant when its inline name is cleared, while the card eraser clears populated slots and changes to an x for removing already-empty slots.
 - Shows add controls in empty icon cells so new variants can be added in place.
 - Supports row highlighting and exclusive row focus to compare one icon row at a time.
+- Saves selected icon variants into exported brand data.
 
 ## Preview And Controls
 - Provides a preview mode toggle that adds or removes `preview-mode` on the page body.

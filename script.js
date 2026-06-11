@@ -12,6 +12,7 @@
 		const select = document.getElementById('brand-select');
 		const themeSelector = document.getElementById('theme-selector');
 		const themeSelect = document.getElementById('theme-select');
+		const saveJsonButton = document.getElementById('save-json');
 		const themeToggle = document.getElementById('theme-toggle');
 		const logoSection = document.getElementById('logo-files');
 		const logoList = document.getElementById('logo-files-list');
@@ -73,6 +74,71 @@
 					resolve();
 				} catch (err) { reject(err); }
 			});
+		}
+
+		function cloneJsonValue(value) {
+			return JSON.parse(JSON.stringify(value));
+		}
+
+		function getExportFileName() {
+			const rawName = activeBrandId || (activeBrandData && (activeBrandData.id || activeBrandData.name || activeBrandData.title)) || 'brand';
+			const safeName = String(rawName).trim().replace(/[^a-z0-9._-]+/gi, '-').replace(/^-+|-+$/g, '') || 'brand';
+			return `${safeName}.json.js`;
+		}
+
+		function applySelectedIconIndexesForExport(brand) {
+			const source = brand && (brand.icons || brand.iconComparison || brand.iconComparisons);
+			if (!Array.isArray(source)) return;
+
+			function applyRow(row, parentCategory) {
+				if (!row) return;
+				const label = normalizeIconName(row.label || row.name);
+				const category = normalizeIconName(parentCategory || row.category || row.location || row.group || 'Icons');
+				const rowKey = getIconRowKey(category, label);
+				if (label && selectedIconIndexes[rowKey] !== undefined) {
+					row.currentIndex = selectedIconIndexes[rowKey];
+				}
+			}
+
+			source.forEach(item => {
+				if (!item) return;
+				const parentCategory = normalizeIconName(item.category || item.location || item.group);
+				const children = item.rows || item.items || item.icons;
+				if (Array.isArray(children)) {
+					children.forEach(child => applyRow(child, parentCategory));
+					return;
+				}
+				applyRow(item, parentCategory);
+			});
+		}
+
+		function getActiveBrandExportData() {
+			if (!activeBrandData) return null;
+			const exportData = cloneJsonValue(activeBrandData);
+			applySelectedIconIndexesForExport(exportData);
+			return exportData;
+		}
+
+		function exportActiveBrandJson() {
+			const exportData = getActiveBrandExportData();
+			if (!exportData) return;
+			const content = `window.BRAND = ${JSON.stringify(exportData, null, '\t')};\n`;
+			const blob = new Blob([content], { type: 'application/javascript;charset=utf-8' });
+			const url = URL.createObjectURL(blob);
+			const link = document.createElement('a');
+			link.href = url;
+			link.download = getExportFileName();
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+			window.setTimeout(() => URL.revokeObjectURL(url), 0);
+		}
+
+		function updateSaveJsonButton() {
+			if (!saveJsonButton) return;
+			const hasBrand = !!activeBrandData;
+			saveJsonButton.disabled = !hasBrand;
+			saveJsonButton.setAttribute('aria-disabled', hasBrand ? 'false' : 'true');
 		}
 
 		function flashCopied(el) {
@@ -320,6 +386,7 @@
 			activeBrandId = id || null;
 			activeBrandData = brand || null;
 			activeBrandThemes = getBrandThemes(brand);
+			updateSaveJsonButton();
 			if (activeBrandId) {
 				storeBrandId(activeBrandId);
 			}
@@ -1037,6 +1104,7 @@
 
 				function applyColorValue(nextColor) {
 					if (!nextColor) return;
+					font.color = nextColor;
 					if (fontSampleText) {
 						fontSampleText.style.color = nextColor;
 					}
@@ -1087,6 +1155,15 @@
 					colorSelect.value = nextColor;
 					colorSelect.dispatchEvent(new Event('change'));
 				});
+
+				if (fontSampleText) {
+					fontSampleText.addEventListener('input', () => {
+						font.sampleText = fontSampleText.textContent;
+					});
+					fontSampleText.addEventListener('blur', () => {
+						font.sampleText = fontSampleText.textContent;
+					});
+				}
 
 				function setGoogleButtonVisibility(shouldShow) {
 					if (!loadGoogleFontButton) return;
@@ -1165,6 +1242,7 @@
 					const rawValue = fontFamilyInput.value;
 					const nextValue = rawValue && rawValue.trim() ? rawValue.trim() : committedFontFamily;
 					committedFontFamily = nextValue;
+					font.family = committedFontFamily;
 					fontFamilyInput.value = committedFontFamily;
 					fontFamilyName.style.display = 'inline-block';
 					fontFamilyInput.style.display = 'none';
@@ -1552,6 +1630,11 @@
 				const next = current === 'dark' ? 'light' : 'dark';
 				setActiveTheme(next);
 			});
+		}
+
+		if (saveJsonButton) {
+			saveJsonButton.addEventListener('click', exportActiveBrandJson);
+			updateSaveJsonButton();
 		}
 
 		// When the select changes, load the chosen brand

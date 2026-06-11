@@ -228,6 +228,17 @@ body {
 	background: var(--preview-hover-bg);
 }
 
+.icon-toggle:disabled,
+.icon-toggle[aria-disabled="true"] {
+	cursor: not-allowed;
+	opacity: 0.35;
+}
+
+.icon-toggle:disabled:hover,
+.icon-toggle[aria-disabled="true"]:hover {
+	background: transparent;
+}
+
 .icon-toggle:focus-visible {
 	outline: 2px solid var(--icon-color-active);
 	outline-offset: 2px;
@@ -993,6 +1004,25 @@ footer.site-footer {
 	color: var(--footer-text);
 	padding: 12px 0;
 	font-size: 13px
+}
+
+.footer-actions {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	margin: 4px auto 0;
+	max-width: 1000px;
+	width: 100%;
+}
+
+.save-json-control {
+	width: 42px;
+	height: 42px;
+	border-radius: 21px;
+}
+
+.save-json-control i {
+	font-size: 24px;
 }
 
 #font-samples {

@@ -409,6 +409,10 @@ body.preview-mode .icon-option-card[data-preview-selected="true"] {
 	pointer-events: none;
 }
 
+body.preview-mode .icon-option-name {
+	border-bottom-color: transparent;
+}
+
 body.preview-mode .font-index-label,
 body.preview-mode .icon-alpha-cell,
 body.preview-mode table td.serial {

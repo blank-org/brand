@@ -1099,6 +1099,7 @@
 						const input = document.createElement('input');
 						input.className = 'icon-option-name';
 						input.type = 'text';
+						input.spellcheck = false;
 						input.value = variant.name;
 						input.placeholder = 'Icon name';
 						input.setAttribute('aria-label', `${rowData.label} option ${variant.index} icon name`);

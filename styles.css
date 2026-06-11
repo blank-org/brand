@@ -1022,10 +1022,6 @@ td {
 	border-bottom: 1px solid var(--table-border);
 }
 
-tbody tr:nth-child(even) {
-	background-color: var(--table-row-alt);
-}
-
 table.hide-serial th.serial-column,
 table.hide-serial td.serial {
 	display: none;

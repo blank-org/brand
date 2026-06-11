@@ -38,6 +38,10 @@
 - Groups icon rows by category.
 - Renders icon variants using the Lucide browser runtime.
 - Shows the current icon option and lets users select alternate variants.
+- Allows icon names to be edited inline; the edited name is used as the Lucide icon component.
+- Limits comparison rows to five icon variant slots.
+- Removes an icon variant when its inline name is cleared, while the card eraser clears populated slots and changes to an x for removing already-empty slots.
+- Shows add controls in empty icon cells so new variants can be added in place.
 - Supports row highlighting and exclusive row focus to compare one icon row at a time.
 
 ## Preview And Controls
@@ -49,4 +53,3 @@
 - Runs as a static HTML, CSS, and JavaScript app.
 - Requires no bundler, transpiler, or backend service.
 - Can be opened directly through `brand.html`; a simple static server may be used for live reload workflows.
-

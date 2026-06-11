@@ -543,6 +543,7 @@ body.preview-mode .icon-option-card.is-selected {
 }
 
 .icon-option-card {
+	position: relative;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -555,7 +556,6 @@ body.preview-mode .icon-option-card.is-selected {
 	background: var(--surface-bg);
 	color: var(--body-text);
 	text-align: center;
-	cursor: pointer;
 	transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease, opacity 0.2s ease;
 }
 
@@ -594,6 +594,7 @@ body.preview-mode .icon-option-card.is-selected {
 	opacity: 0.9;
 	border-radius: 8px;
 	background: var(--card-bg);
+	cursor: pointer;
 }
 
 .icon-option-symbol svg {
@@ -619,18 +620,107 @@ body.preview-mode .icon-option-card.is-selected {
 .icon-option-name {
 	display: block;
 	max-width: 100%;
+	width: 100%;
+	min-width: 0;
+	border: 0;
+	border-bottom: 1px solid var(--surface-border);
+	border-radius: 0;
+	padding: 5px 0;
+	background: transparent;
 	font-size: 12px;
 	font-weight: 600;
 	line-height: 1.25;
 	color: var(--muted-text);
+	text-align: center;
 	overflow-wrap: anywhere;
 }
 
+.icon-option-name:hover,
+.icon-option-name:focus {
+	border-bottom-color: var(--surface-border);
+	color: var(--body-text);
+	outline: none;
+}
+
+.icon-option-name:focus {
+	border-bottom-color: var(--accent-primary);
+	box-shadow: none;
+}
+
+.icon-option-edit {
+	position: relative;
+	display: block;
+	width: 100%;
+}
+
+.icon-option-clear {
+	display: grid;
+	place-items: center;
+	width: 24px;
+	height: 24px;
+	border: 0;
+	background: transparent;
+	color: var(--muted-text);
+	cursor: pointer;
+	opacity: 0;
+	pointer-events: none;
+	transition: color 0.2s ease, opacity 0.2s ease;
+}
+
+.icon-option-clear.is-remove {
+	position: absolute;
+	right: 8px;
+	top: 8px;
+}
+
+.icon-option-clear.is-clear {
+	position: absolute;
+	right: 8px;
+	top: 72px;
+}
+
+.icon-option-card.is-editing .icon-option-clear,
+.icon-option-clear:focus-visible {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+.icon-option-clear:hover,
+.icon-option-clear:focus-visible {
+	color: var(--accent-primary);
+	outline: none;
+}
+
+.icon-option-clear i,
+.icon-option-clear svg {
+	display: block;
+	width: 14px;
+	height: 14px;
+}
+
 .icon-option-empty {
+	display: grid;
+	place-items: center;
 	min-height: 112px;
 	border-radius: 8px;
 	border: 1px dashed var(--surface-border);
+	background: transparent;
+	color: var(--muted-text);
+	cursor: pointer;
 	opacity: 0.5;
+	transition: border-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+}
+
+.icon-option-empty:hover,
+.icon-option-empty:focus-visible {
+	border-color: var(--accent-primary);
+	color: var(--accent-primary);
+	opacity: 1;
+	outline: none;
+}
+
+.icon-option-empty i {
+	font-size: 24px;
 }
 
 .icon-control-cell {

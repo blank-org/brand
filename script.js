@@ -30,6 +30,8 @@
 		const selectedIconIndexes = {};
 		const highlightedIconRows = {};
 		let exclusiveIconRowKey = null;
+		let pendingIconInputFocus = null;
+		const ICON_VARIANT_LIMIT = 5;
 
 		const previewToggle = document.getElementById('preview-toggle');
 		if (previewToggle) {
@@ -402,6 +404,14 @@
 				.toLowerCase();
 		}
 
+		function escapeSelectorValue(value) {
+			const str = String(value);
+			if (window.CSS && typeof window.CSS.escape === 'function') {
+				return window.CSS.escape(str);
+			}
+			return str.replace(/["\\]/g, '\\$&');
+		}
+
 		function getIconGroups(brand) {
 			const source = brand && (brand.icons || brand.iconComparison || brand.iconComparisons);
 			if (!Array.isArray(source)) return [];
@@ -413,17 +423,20 @@
 					if (!variant) return variantAcc;
 					const index = variant.index === undefined || variant.index === null ? variantAcc.length + 1 : variant.index;
 					const icon = normalizeIconName(variant.icon || variant.name || variant.component);
-					if (!icon) return variantAcc;
 					variantAcc.push({
 						index,
 						icon,
-						name: normalizeIconName(variant.name) || icon
+						name: normalizeIconName(variant.name) || icon,
+						sourceVariant: variant
 					});
 					return variantAcc;
 				}, []) : [];
-				if (!label || !variants.length) return;
-				const currentIndex = item.currentIndex === undefined || item.currentIndex === null ? variants[0].index : item.currentIndex;
-				acc.push({ label, category, currentIndex, variants });
+				if (!label || (!variants.length && !Array.isArray(item.variants))) return;
+				const firstActiveVariant = variants.find(variant => variant.icon);
+				const currentIndex = item.currentIndex === undefined || item.currentIndex === null
+					? (firstActiveVariant ? firstActiveVariant.index : '')
+					: item.currentIndex;
+				acc.push({ label, category, currentIndex, variants, sourceRow: item });
 			}
 			return source.reduce((acc, item) => {
 				if (!item) return acc;
@@ -464,12 +477,101 @@
 					}
 				});
 			});
-			return values.sort((a, b) => {
+			const sortedValues = values.sort((a, b) => {
 				const aNumber = Number(a);
 				const bNumber = Number(b);
 				if (!Number.isNaN(aNumber) && !Number.isNaN(bNumber)) return aNumber - bNumber;
 				return String(a).localeCompare(String(b));
 			});
+			return sortedValues.length ? sortedValues : [1];
+		}
+
+		function getIconDisplayIndexes(indexes) {
+			const numericIndexes = indexes.map(index => Number(index)).filter(index => Number.isFinite(index));
+			if (numericIndexes.length === indexes.length) {
+				const displayIndexes = [];
+				for (let i = 1; i <= ICON_VARIANT_LIMIT; i += 1) {
+					displayIndexes.push(i);
+				}
+				return displayIndexes;
+			}
+			return indexes.slice(0, ICON_VARIANT_LIMIT);
+		}
+
+		function getIconVariantByIndex(rowData, index) {
+			return rowData.variants.find(item => String(item.index) === String(index));
+		}
+
+		function ensureIconSourceVariants(rowData) {
+			if (!rowData || !rowData.sourceRow) return [];
+			if (!Array.isArray(rowData.sourceRow.variants)) {
+				rowData.sourceRow.variants = [];
+			}
+			return rowData.sourceRow.variants;
+		}
+
+		function commitIconVariantName(rowData, index, value) {
+			const variants = ensureIconSourceVariants(rowData);
+			const name = normalizeIconName(value);
+			const match = variants.find(variant => variant && String(variant.index) === String(index));
+			if (!name) {
+				rowData.sourceRow.variants = variants.filter(variant => variant && String(variant.index) !== String(index));
+				if (String(rowData.sourceRow.currentIndex) === String(index)) {
+					const nextVariant = rowData.sourceRow.variants.find(variant => normalizeIconName(variant.icon || variant.name || variant.component));
+					if (nextVariant) {
+						rowData.sourceRow.currentIndex = nextVariant.index;
+					} else {
+						delete rowData.sourceRow.currentIndex;
+					}
+				}
+				const rowKey = getIconRowKey(rowData.category, rowData.label);
+				if (String(selectedIconIndexes[rowKey]) === String(index)) {
+					delete selectedIconIndexes[rowKey];
+				}
+			} else if (match) {
+				match.icon = name;
+				match.name = name;
+				if (match.component !== undefined) {
+					match.component = name;
+				}
+			} else {
+				variants.push({ index, icon: name, name });
+			}
+			renderActiveBrand();
+		}
+
+		function addIconVariant(rowData, index) {
+			const variants = ensureIconSourceVariants(rowData);
+			const match = variants.find(variant => variant && String(variant.index) === String(index));
+			if (!match) {
+				variants.push({ index, icon: '', name: '' });
+			}
+			pendingIconInputFocus = {
+				rowKey: getIconRowKey(rowData.category, rowData.label),
+				index: String(index)
+			};
+			renderActiveBrand();
+		}
+
+		function clearIconVariantName(rowData, index) {
+			const variants = ensureIconSourceVariants(rowData);
+			const match = variants.find(variant => variant && String(variant.index) === String(index));
+			if (!match) return;
+			const isAlreadyEmpty = !normalizeIconName(match.icon || match.name || match.component);
+			if (isAlreadyEmpty) {
+				commitIconVariantName(rowData, index, '');
+				return;
+			}
+			match.icon = '';
+			match.name = '';
+			if (match.component !== undefined) {
+				match.component = '';
+			}
+			pendingIconInputFocus = {
+				rowKey: getIconRowKey(rowData.category, rowData.label),
+				index: String(index)
+			};
+			renderActiveBrand();
 		}
 
 		function applyIconGridColumns(element, count) {
@@ -547,8 +649,9 @@
 
 			iconComparisonSection.classList.remove('is-hidden');
 			const iconIndexes = getIconIndexes(rows);
+			const iconDisplayIndexes = getIconDisplayIndexes(iconIndexes);
 			groupIconRows(rows).forEach(group => {
-				const indexes = iconIndexes;
+				const indexes = iconDisplayIndexes;
 				const section = document.createElement('section');
 				section.className = 'icon-comparison-category';
 
@@ -603,38 +706,109 @@
 					row.appendChild(nameCell);
 
 					indexes.forEach(index => {
-						const variant = rowData.variants.find(item => String(item.index) === String(index));
+						const variant = getIconVariantByIndex(rowData, index);
 						if (!variant) {
-							const empty = document.createElement('div');
+							const empty = document.createElement('button');
+							empty.type = 'button';
 							empty.className = 'icon-option-empty';
+							empty.setAttribute('aria-label', `Add ${rowData.label} option ${index}`);
+							empty.title = 'Add icon';
+							const addIcon = document.createElement('i');
+							addIcon.className = 'material-icons';
+							addIcon.setAttribute('aria-hidden', 'true');
+							addIcon.textContent = 'add';
+							empty.appendChild(addIcon);
+							empty.addEventListener('click', () => {
+								addIconVariant(rowData, index);
+							});
 							row.appendChild(empty);
 							return;
 						}
 
-						const button = document.createElement('button');
-						button.type = 'button';
-						button.className = 'icon-option-card';
-						button.dataset.rowKey = rowKey;
-						button.dataset.iconIndex = variant.index;
-						button.setAttribute('aria-label', `${rowData.label} option ${variant.index}: ${variant.name}`);
+						const card = document.createElement('div');
+						card.className = 'icon-option-card';
+						card.dataset.rowKey = rowKey;
+						card.dataset.iconIndex = variant.index;
 
 						const iconBox = document.createElement('span');
 						iconBox.className = 'icon-option-symbol';
-						const icon = document.createElement('i');
-						icon.setAttribute('data-lucide', toLucideAttributeName(variant.icon));
-						iconBox.appendChild(icon);
-						button.appendChild(iconBox);
-
-						const name = document.createElement('span');
-						name.className = 'icon-option-name';
-						name.textContent = variant.name;
-						button.appendChild(name);
-
-						button.addEventListener('click', () => {
+						if (variant.icon) {
+							const icon = document.createElement('i');
+							icon.setAttribute('data-lucide', toLucideAttributeName(variant.icon));
+							iconBox.appendChild(icon);
+						}
+						iconBox.addEventListener('click', () => {
 							selectedIconIndexes[rowKey] = variant.index;
 							updateIconComparisonState();
 						});
-						row.appendChild(button);
+						card.appendChild(iconBox);
+
+						const input = document.createElement('input');
+						input.className = 'icon-option-name';
+						input.type = 'text';
+						input.value = variant.name;
+						input.placeholder = 'Icon name';
+						input.setAttribute('aria-label', `${rowData.label} option ${variant.index} icon name`);
+						input.dataset.rowKey = rowKey;
+						input.dataset.iconIndex = String(variant.index);
+						let committed = false;
+						const commitInput = () => {
+							if (committed) return;
+							committed = true;
+							commitIconVariantName(rowData, variant.index, input.value);
+						};
+						input.addEventListener('focus', () => {
+							card.classList.add('is-editing');
+						});
+						input.addEventListener('blur', () => {
+							window.setTimeout(() => {
+								if (!card.contains(document.activeElement)) {
+									card.classList.remove('is-editing');
+								}
+							}, 0);
+						});
+						input.addEventListener('blur', commitInput);
+						input.addEventListener('keydown', (e) => {
+							if (e.key === 'Enter') {
+								e.preventDefault();
+								commitInput();
+							} else if (e.key === 'Escape') {
+								e.preventDefault();
+								input.value = variant.name;
+								input.blur();
+							}
+						});
+						const editWrap = document.createElement('span');
+						editWrap.className = 'icon-option-edit';
+						editWrap.addEventListener('mousedown', (e) => {
+							if (e.target !== input) {
+								e.preventDefault();
+								input.focus();
+							}
+						});
+						editWrap.appendChild(input);
+						card.appendChild(editWrap);
+
+						const clearButton = document.createElement('button');
+						clearButton.type = 'button';
+						const clearRemovesVariant = !normalizeIconName(variant.icon || variant.name);
+						clearButton.className = `icon-option-clear ${clearRemovesVariant ? 'is-remove' : 'is-clear'}`;
+						clearButton.setAttribute('aria-label', `${clearRemovesVariant ? 'Remove' : 'Clear'} ${rowData.label} option ${variant.index}`);
+						clearButton.title = clearRemovesVariant ? 'Remove icon' : 'Clear icon';
+						const clearIcon = document.createElement('i');
+						clearIcon.setAttribute('data-lucide', clearRemovesVariant ? 'x' : 'eraser');
+						clearButton.appendChild(clearIcon);
+						clearButton.addEventListener('mousedown', (e) => {
+							e.preventDefault();
+						});
+						clearButton.addEventListener('click', (e) => {
+							e.stopPropagation();
+							committed = true;
+							input.value = '';
+							clearIconVariantName(rowData, variant.index);
+						});
+						card.appendChild(clearButton);
+						row.appendChild(card);
 					});
 
 					const highlightCell = document.createElement('div');
@@ -666,6 +840,15 @@
 
 			updateIconComparisonState();
 			refreshLucideIcons(iconComparisonList);
+			if (pendingIconInputFocus) {
+				const selector = `.icon-option-name[data-row-key="${escapeSelectorValue(pendingIconInputFocus.rowKey)}"][data-icon-index="${escapeSelectorValue(pendingIconInputFocus.index)}"]`;
+				const input = iconComparisonList.querySelector(selector);
+				pendingIconInputFocus = null;
+				if (input) {
+					input.focus();
+					input.select();
+				}
+			}
 		}
 
 		function renderFonts(brand) {

@@ -19,6 +19,7 @@
 		const iconComparisonList = document.getElementById('icon-comparison-list');
 		const body = document.body;
 		const bodyThemeClasses = ['theme-light', 'theme-dark'];
+		const themeStorageKey = 'brand.activeTheme';
 		let brandSelectMenu = null;
 		let themeSelectMenu = null;
 		let themeControlMode = 'none';
@@ -87,6 +88,26 @@
 			if (value === null || value === undefined) return null;
 			const str = String(value).trim();
 			return str ? str : null;
+		}
+
+		function getStoredThemeId() {
+			try {
+				return normalizeThemeId(window.localStorage && window.localStorage.getItem(themeStorageKey));
+			} catch (err) {
+				return null;
+			}
+		}
+
+		function storeThemeId(themeId) {
+			const normalized = normalizeThemeId(themeId);
+			if (!normalized) return;
+			try {
+				if (window.localStorage) {
+					window.localStorage.setItem(themeStorageKey, normalized);
+				}
+			} catch (err) {
+				// localStorage can be unavailable in private or restricted browser contexts.
+			}
 		}
 
 		function getBrandThemes(brand) {
@@ -279,10 +300,14 @@
 			activeBrandData = brand || null;
 			activeBrandThemes = getBrandThemes(brand);
 			const defaultThemeId = normalizeThemeId(brand && brand.defaultTheme);
+			const storedThemeId = getStoredThemeId();
 
 			const candidates = [];
 			if (id && id === previousBrandId && previousThemeId) {
 				candidates.push(previousThemeId);
+			}
+			if (storedThemeId) {
+				candidates.push(storedThemeId);
 			}
 			if (defaultThemeId) {
 				candidates.push(defaultThemeId);
@@ -300,6 +325,7 @@
 				return;
 			}
 			activeThemeId = resolved;
+			storeThemeId(activeThemeId);
 			renderActiveBrand();
 		}
 

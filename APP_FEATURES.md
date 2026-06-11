@@ -18,6 +18,7 @@
 - Uses a theme dropdown when a brand exposes multiple named themes.
 - Applies `theme-light` or `theme-dark` body classes based on the active theme.
 - Preserves the selected theme when re-rendering the same brand where possible.
+- Restores the last selected theme from localStorage across page reloads.
 
 ## Logo Files
 - Displays optional brand logo assets from the brand `logos` array.

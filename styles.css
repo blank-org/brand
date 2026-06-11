@@ -468,7 +468,8 @@ body.preview-mode .icon-option-card.is-selected {
 }
 
 .icon-comparison-category {
-	padding: 18px 20px 20px;
+	position: relative;
+	padding: 18px 20px 42px;
 	border-radius: 8px;
 	border: 1px solid var(--surface-border);
 	background: var(--surface-bg);
@@ -476,12 +477,15 @@ body.preview-mode .icon-option-card.is-selected {
 }
 
 .icon-category-label {
-	margin-bottom: 14px;
+	position: absolute;
+	right: 20px;
+	bottom: 14px;
 	font-size: 12px;
 	font-weight: 700;
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
 	color: var(--muted-text);
+	text-align: right;
 }
 
 .icon-comparison-scroll {

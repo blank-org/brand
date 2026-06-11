@@ -4,6 +4,7 @@
 - Populates the brand dropdown from `window.BRAND_LIST`.
 - Dynamically loads the selected brand data script from `data/<brandId>.json.js`.
 - Re-renders colours, logo files, typography samples, and icon comparisons when the active brand changes.
+- Restores the last selected brand from localStorage across page reloads.
 
 ## Colour Reference
 - Displays brand colours in a table with colour code, visual swatch, and remark fields.

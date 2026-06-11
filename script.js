@@ -19,6 +19,7 @@
 		const iconComparisonList = document.getElementById('icon-comparison-list');
 		const body = document.body;
 		const bodyThemeClasses = ['theme-light', 'theme-dark'];
+		const brandStorageKey = 'brand.activeBrand';
 		const themeStorageKey = 'brand.activeTheme';
 		let brandSelectMenu = null;
 		let themeSelectMenu = null;
@@ -104,6 +105,26 @@
 			try {
 				if (window.localStorage) {
 					window.localStorage.setItem(themeStorageKey, normalized);
+				}
+			} catch (err) {
+				// localStorage can be unavailable in private or restricted browser contexts.
+			}
+		}
+
+		function getStoredBrandId() {
+			try {
+				return normalizeThemeId(window.localStorage && window.localStorage.getItem(brandStorageKey));
+			} catch (err) {
+				return null;
+			}
+		}
+
+		function storeBrandId(brandId) {
+			const normalized = normalizeThemeId(brandId);
+			if (!normalized) return;
+			try {
+				if (window.localStorage) {
+					window.localStorage.setItem(brandStorageKey, normalized);
 				}
 			} catch (err) {
 				// localStorage can be unavailable in private or restricted browser contexts.
@@ -299,6 +320,9 @@
 			activeBrandId = id || null;
 			activeBrandData = brand || null;
 			activeBrandThemes = getBrandThemes(brand);
+			if (activeBrandId) {
+				storeBrandId(activeBrandId);
+			}
 			const defaultThemeId = normalizeThemeId(brand && brand.defaultTheme);
 			const storedThemeId = getStoredThemeId();
 
@@ -1540,7 +1564,11 @@
 
 		// initial population and load first brand if available
 		populateSelect();
-		const first = (window.BRAND_LIST && window.BRAND_LIST[0]) || null;
+		const brandList = window.BRAND_LIST || [];
+		const storedBrandId = getStoredBrandId();
+		const first = (storedBrandId && brandList.indexOf(storedBrandId) !== -1)
+			? storedBrandId
+			: (brandList[0] || null);
 		if (first && select) {
 			select.value = first;
 			if (brandSelectMenu && typeof brandSelectMenu.update === 'function') {

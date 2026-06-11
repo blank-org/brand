@@ -168,6 +168,29 @@ body {
 	box-sizing: border-box;
 }
 
+button,
+select,
+[role="button"],
+.select-custom,
+.font-controls,
+.font-source-toggles,
+.icon-comparison-header,
+.icon-control-cell,
+.icon-option-card,
+.header-actions,
+.footer-actions {
+	-webkit-user-select: none;
+	user-select: none;
+}
+
+input,
+textarea,
+[contenteditable="true"],
+.font-sample-text {
+	-webkit-user-select: text;
+	user-select: text;
+}
+
 .sections
 {
 	max-width: 1000px;

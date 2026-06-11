@@ -53,6 +53,7 @@
 - Provides a preview mode toggle that adds or removes `preview-mode` on the page body.
 - Uses custom-styled select controls while keeping the underlying native selects available to scripts.
 - Closes custom select menus when users click outside them.
+- Prevents accidental drag text selection on app controls while preserving text selection in editable fields.
 
 ## Static Runtime
 - Runs as a static HTML, CSS, and JavaScript app.

@@ -618,6 +618,7 @@ body.preview-mode.preview-indexes table td.serial {
 
 .icon-comparison-category {
 	position: relative;
+	box-sizing: border-box;
 	padding: 18px 20px 42px;
 	border-radius: 8px;
 	border: 1px solid var(--surface-border);
@@ -990,11 +991,16 @@ body.preview-mode.preview-indexes table td.serial {
 }
 
 .icon-row-actions {
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
 	display: flex;
 	align-items: center;
 	justify-content: flex-end;
-	min-height: 112px;
+	width: 30px;
 	transition: filter 0.2s ease, opacity 0.2s ease;
+	pointer-events: none;
 }
 
 .icon-row-drag-handle {
@@ -1012,8 +1018,9 @@ body.preview-mode.preview-indexes table td.serial {
 	color: var(--muted-text);
 	cursor: grab;
 	opacity: 0;
-	transform: translateX(2px) scale(0.92);
+	transform: scale(0.92);
 	transition: background 0.18s ease, color 0.18s ease, opacity 0.18s ease, transform 0.18s ease;
+	pointer-events: auto;
 }
 
 .icon-row-drag-handle span,
@@ -1031,7 +1038,7 @@ body.preview-mode.preview-indexes table td.serial {
 .icon-row-drag-handle:focus-visible,
 .icon-comparison-row.is-row-dragging .icon-row-drag-handle {
 	opacity: 1;
-	transform: translateX(0) scale(1);
+	transform: scale(1);
 }
 
 .icon-row-drag-handle:hover,

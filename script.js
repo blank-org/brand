@@ -1326,7 +1326,7 @@
 
 		function applyIconGridColumns(element, count) {
 			if (!element) return;
-			element.style.gridTemplateColumns = `6.5rem repeat(${count}, 8rem) 4rem 1.5rem 2rem`;
+			element.style.gridTemplateColumns = `6.5rem repeat(${count}, 8rem) 3.5rem 1.5rem`;
 		}
 
 		function refreshLucideIcons(root) {
@@ -1436,7 +1436,6 @@
 				alphaSpacer.className = 'icon-alpha-label';
 				alphaSpacer.setAttribute('aria-hidden', 'true');
 				header.appendChild(alphaSpacer);
-				header.appendChild(document.createElement('div'));
 				content.appendChild(header);
 
 				group.rows.forEach((rowData, rowIndex) => {

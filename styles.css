@@ -1087,6 +1087,11 @@ td {
 	border-bottom: 1px solid var(--table-border);
 }
 
+table[aria-label="Brand colours table"] th:first-child,
+table[aria-label="Brand colours table"] td:first-child {
+	padding-left: 24px;
+}
+
 table[aria-label="Brand colours table"] tbody tr {
 	position: relative;
 	transition: background 0.18s ease, opacity 0.18s ease, transform 0.18s ease;

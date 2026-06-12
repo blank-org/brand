@@ -37,6 +37,7 @@
 		let draggedIconVariant = null;
 		let draggedIconRow = null;
 		let draggedColourRow = null;
+		let draggedLogoFile = null;
 		let pendingColourRowPositions = null;
 		let clearIconEmptyRemoveHoverSuppression = null;
 		const ICON_VARIANT_LIMIT = 5;
@@ -418,6 +419,11 @@
 			return Array.isArray(activeBrandData.colours) ? activeBrandData.colours : null;
 		}
 
+		function getActiveLogoSource() {
+			if (!activeBrandData || !Array.isArray(activeBrandData.logos)) return null;
+			return activeBrandData.logos;
+		}
+
 		function clearColourRowDragState() {
 			if (tbody) {
 				tbody.querySelectorAll('.is-colour-row-dragging, .is-colour-row-drag-target').forEach(element => {
@@ -659,11 +665,18 @@
 			logoSection.classList.remove('is-hidden');
 			logos.forEach((logo, index) => {
 				if (!logo || !logo.file) return;
+				const card = document.createElement('div');
+				card.className = 'logo-file';
+				card.setAttribute('role', 'listitem');
+				card.dataset.logoIndex = String(index);
+				card.draggable = true;
+				card.setAttribute('aria-grabbed', 'false');
+				bindLogoFileDrag(card, index);
+
 				const link = document.createElement('a');
-				link.className = 'logo-file';
+				link.className = 'logo-file-link';
 				link.href = 'data'+'/'+logo.file;
-				link.setAttribute('role', 'listitem');
-				link.dataset.logoIndex = String(index);
+				link.draggable = false;
 				if (logo.download !== false) {
 					link.setAttribute('download', '');
 				}
@@ -699,11 +712,129 @@
 				}
 
 				link.appendChild(meta);
-				logoList.appendChild(link);
+				card.appendChild(link);
+
+				const controls = document.createElement('div');
+				controls.className = 'logo-file-reorder';
+
+				const previousButton = document.createElement('button');
+				previousButton.type = 'button';
+				previousButton.className = 'logo-file-reorder-button';
+				previousButton.disabled = index === 0;
+				previousButton.setAttribute('aria-label', `Move ${logo.name || `Logo ${index + 1}`} left`);
+				previousButton.title = 'Move left';
+				const previousIcon = document.createElement('i');
+				previousIcon.className = 'material-icons';
+				previousIcon.setAttribute('aria-hidden', 'true');
+				previousIcon.textContent = 'chevron_left';
+				previousButton.appendChild(previousIcon);
+				previousButton.addEventListener('click', (e) => {
+					e.preventDefault();
+					e.stopPropagation();
+					moveLogoFile(index, index - 1);
+				});
+
+				const nextButton = document.createElement('button');
+				nextButton.type = 'button';
+				nextButton.className = 'logo-file-reorder-button';
+				nextButton.disabled = index >= logos.length - 1;
+				nextButton.setAttribute('aria-label', `Move ${logo.name || `Logo ${index + 1}`} right`);
+				nextButton.title = 'Move right';
+				const nextIcon = document.createElement('i');
+				nextIcon.className = 'material-icons';
+				nextIcon.setAttribute('aria-hidden', 'true');
+				nextIcon.textContent = 'chevron_right';
+				nextButton.appendChild(nextIcon);
+				nextButton.addEventListener('click', (e) => {
+					e.preventDefault();
+					e.stopPropagation();
+					moveLogoFile(index, index + 1);
+				});
+
+				controls.appendChild(previousButton);
+				controls.appendChild(nextButton);
+				card.appendChild(controls);
+				logoList.appendChild(card);
 			});
 			if (!logoList.children.length) {
 				logoSection.classList.add('is-hidden');
 			}
+		}
+
+		function clearLogoFileDragState() {
+			if (logoList) {
+				logoList.querySelectorAll('.is-logo-dragging, .is-logo-drag-target').forEach(element => {
+					element.classList.remove('is-logo-dragging', 'is-logo-drag-target');
+					if (element.classList.contains('logo-file')) {
+						element.setAttribute('aria-grabbed', 'false');
+					}
+				});
+			}
+			draggedLogoFile = null;
+		}
+
+		function moveLogoFile(fromIndex, toIndex) {
+			const logos = getActiveLogoSource();
+			const startIndex = Number(fromIndex);
+			const targetIndex = Number(toIndex);
+			if (!Array.isArray(logos) || !Number.isInteger(startIndex) || !Number.isInteger(targetIndex)) return;
+			if (startIndex < 0 || startIndex >= logos.length || targetIndex < 0 || targetIndex >= logos.length || startIndex === targetIndex) return;
+			const moved = logos.splice(startIndex, 1)[0];
+			logos.splice(targetIndex, 0, moved);
+			renderActiveBrand();
+		}
+
+		function getDraggedLogoPayload(e) {
+			if (!e || !e.dataTransfer) return draggedLogoFile;
+			const text = e.dataTransfer.getData('application/x-brand-logo');
+			if (!text) return draggedLogoFile;
+			try {
+				return JSON.parse(text);
+			} catch (err) {
+				return draggedLogoFile;
+			}
+		}
+
+		function bindLogoFileDrag(card, index) {
+			if (!card) return;
+			card.addEventListener('dragstart', (e) => {
+				if (e.target.closest('.logo-file-reorder-button')) {
+					e.preventDefault();
+					return;
+				}
+				draggedLogoFile = { index };
+				card.classList.add('is-logo-dragging');
+				card.setAttribute('aria-grabbed', 'true');
+				if (e.dataTransfer) {
+					const payload = JSON.stringify(draggedLogoFile);
+					e.dataTransfer.effectAllowed = 'move';
+					e.dataTransfer.setData('application/x-brand-logo', payload);
+					e.dataTransfer.setData('text/plain', payload);
+				}
+			});
+			card.addEventListener('dragend', clearLogoFileDragState);
+			card.addEventListener('dragover', (e) => {
+				const payload = draggedLogoFile;
+				if (!payload || payload.index === index) {
+					card.classList.remove('is-logo-drag-target');
+					return;
+				}
+				e.preventDefault();
+				if (e.dataTransfer) {
+					e.dataTransfer.dropEffect = 'move';
+				}
+				card.classList.add('is-logo-drag-target');
+			});
+			card.addEventListener('dragleave', () => {
+				card.classList.remove('is-logo-drag-target');
+			});
+			card.addEventListener('drop', (e) => {
+				const payload = getDraggedLogoPayload(e);
+				if (!payload || payload.index === index) return;
+				e.preventDefault();
+				clearLogoFileDragState();
+				moveLogoFile(payload.index, index);
+			});
 		}
 
 		function normalizeIconName(value) {
@@ -1337,7 +1468,7 @@
 						bindIconDropTarget(card, rowData, rowKey, variant.index);
 						card.addEventListener('dragstart', (e) => {
 							e.stopPropagation();
-							if (e.target.closest('.icon-option-name, .icon-option-clear')) {
+							if (e.target.closest('.icon-option-name, .icon-option-clear, .icon-option-reorder-button')) {
 								e.preventDefault();
 								return;
 							}
@@ -1448,6 +1579,56 @@
 							clearIconVariantName(rowData, variant.index);
 						});
 						card.appendChild(clearButton);
+
+						const variantPosition = indexes.findIndex(item => String(item) === String(variant.index));
+						const reorderControls = document.createElement('div');
+						reorderControls.className = 'icon-option-reorder';
+
+						const previousButton = document.createElement('button');
+						previousButton.type = 'button';
+						previousButton.className = 'icon-option-reorder-button';
+						previousButton.disabled = variantPosition <= 0;
+						previousButton.setAttribute('aria-label', `Move ${variant.name || rowData.label} option ${variant.index} left`);
+						previousButton.title = 'Move left';
+						const previousIcon = document.createElement('i');
+						previousIcon.setAttribute('data-lucide', 'chevron-left');
+						previousButton.appendChild(previousIcon);
+						previousButton.addEventListener('mousedown', (e) => {
+							e.preventDefault();
+							pauseCardDrag();
+						});
+						previousButton.addEventListener('mouseup', resumeCardDrag);
+						previousButton.addEventListener('click', (e) => {
+							e.preventDefault();
+							e.stopPropagation();
+							if (variantPosition <= 0) return;
+							moveIconVariant(rowData, variant.index, indexes[variantPosition - 1]);
+						});
+
+						const nextButton = document.createElement('button');
+						nextButton.type = 'button';
+						nextButton.className = 'icon-option-reorder-button';
+						nextButton.disabled = variantPosition < 0 || variantPosition >= indexes.length - 1;
+						nextButton.setAttribute('aria-label', `Move ${variant.name || rowData.label} option ${variant.index} right`);
+						nextButton.title = 'Move right';
+						const nextIcon = document.createElement('i');
+						nextIcon.setAttribute('data-lucide', 'chevron-right');
+						nextButton.appendChild(nextIcon);
+						nextButton.addEventListener('mousedown', (e) => {
+							e.preventDefault();
+							pauseCardDrag();
+						});
+						nextButton.addEventListener('mouseup', resumeCardDrag);
+						nextButton.addEventListener('click', (e) => {
+							e.preventDefault();
+							e.stopPropagation();
+							if (variantPosition < 0 || variantPosition >= indexes.length - 1) return;
+							moveIconVariant(rowData, variant.index, indexes[variantPosition + 1]);
+						});
+
+						reorderControls.appendChild(previousButton);
+						reorderControls.appendChild(nextButton);
+						card.appendChild(reorderControls);
 						row.appendChild(card);
 					});
 

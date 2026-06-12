@@ -28,6 +28,7 @@
 - Shows logo previews, names, and supporting metadata such as usage, variant, background, and notes.
 - Links logo cards to files under `data/`.
 - Enables download behavior unless a logo entry sets `download: false`.
+- Allows logo cards to be reordered with drag/drop or left/right controls.
 
 ## Typography Samples
 - Renders font sample sections from each brand's `fonts` array.
@@ -46,6 +47,7 @@
 - Allows icon names to be edited inline; the edited name is used as the Lucide icon component.
 - Limits comparison rows to five icon variant slots.
 - Allows icon rows to be dragged into a new order and icon variants to be dragged within a row to rearrange or swap their slot order.
+- Allows icon variants to be moved left or right with inline arrow controls.
 - Removes an icon variant when its inline name is cleared, while the card eraser clears populated slots and changes to an x for removing already-empty slots.
 - Shows add controls in empty icon cells, with a hover-only top-right x in gap cells to shift later icons left.
 - Prevents stale drag/drop hover state from immediately revealing the empty-slot x until the pointer moves again.

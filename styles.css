@@ -480,6 +480,7 @@ body.preview-mode.preview-indexes table td.serial {
 }
 
 .logo-file {
+	position: relative;
 	display: flex;
 	flex-direction: column;
 	align-items: flex-start;
@@ -488,14 +489,23 @@ body.preview-mode.preview-indexes table td.serial {
 	border-radius: 12px;
 	border: 1px solid var(--surface-border);
 	background: var(--surface-bg);
-	text-decoration: none;
 	color: inherit;
 	box-shadow: var(--surface-shadow);
-	transition: border-color 0.2s ease, box-shadow 0.2s ease;
+	transition: border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
 	min-width: 240px;
 	max-width: 320px;
 	flex: 1 1 260px;
 	align-self: stretch;
+}
+
+.logo-file-link {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 12px;
+	width: 100%;
+	color: inherit;
+	text-decoration: none;
 }
 
 .logo-file-preview {
@@ -508,10 +518,76 @@ body.preview-mode.preview-indexes table td.serial {
 }
 
 .logo-file:hover,
-.logo-file:focus {
+.logo-file:focus,
+.logo-file:focus-within {
 	border-color: var(--surface-border-hover);
 	box-shadow: var(--surface-shadow-hover);
 	outline: none;
+}
+
+.logo-file.is-logo-dragging {
+	opacity: 0.55;
+	border-style: dashed;
+}
+
+.logo-file.is-logo-drag-target {
+	border-color: var(--accent-primary);
+	box-shadow: inset 0 0 0 2px var(--accent-primary), var(--surface-shadow-hover);
+}
+
+.logo-file-reorder {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 4px;
+	width: 100%;
+}
+
+.logo-file-reorder-button,
+.icon-option-reorder-button {
+	display: grid;
+	place-items: center;
+	width: 28px;
+	height: 28px;
+	border: 0;
+	border-radius: 6px;
+	background: transparent;
+	color: var(--muted-text);
+	cursor: pointer;
+	opacity: 0.55;
+	transition: background 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+}
+
+.logo-file-reorder-button:hover,
+.logo-file-reorder-button:focus-visible,
+.icon-option-reorder-button:hover,
+.icon-option-reorder-button:focus-visible {
+	background: var(--accent-muted-bg);
+	color: var(--accent-primary);
+	opacity: 1;
+	outline: none;
+}
+
+.logo-file-reorder-button:disabled,
+.icon-option-reorder-button:disabled {
+	cursor: default;
+	opacity: 0.25;
+}
+
+.logo-file-reorder-button:disabled:hover,
+.icon-option-reorder-button:disabled:hover {
+	background: transparent;
+	color: var(--muted-text);
+}
+
+.logo-file-reorder-button i,
+.icon-option-reorder-button i,
+.icon-option-reorder-button svg {
+	display: block;
+	width: 18px;
+	height: 18px;
+	font-size: 20px;
+	line-height: 1;
 }
 
 .logo-file .logo-file-meta {
@@ -655,7 +731,7 @@ body.preview-mode.preview-indexes table td.serial {
 	justify-content: center;
 	gap: 12px;
 	min-height: 112px;
-	padding: 16px 12px;
+	padding: 16px 12px 34px;
 	border: 1px solid var(--surface-border);
 	border-radius: 8px;
 	background: var(--surface-bg);
@@ -814,6 +890,27 @@ body.preview-mode.preview-indexes table td.serial {
 	display: block;
 	width: 14px;
 	height: 14px;
+}
+
+.icon-option-reorder {
+	position: absolute;
+	left: 8px;
+	right: 8px;
+	bottom: 5px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 4px;
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.2s ease;
+}
+
+.icon-option-card:hover .icon-option-reorder,
+.icon-option-card:focus-within .icon-option-reorder,
+.icon-option-card.is-editing .icon-option-reorder {
+	opacity: 1;
+	pointer-events: auto;
 }
 
 .icon-option-empty {

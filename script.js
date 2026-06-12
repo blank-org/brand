@@ -39,6 +39,7 @@
 		let draggedColourRow = null;
 		let draggedLogoFile = null;
 		let pendingColourRowPositions = null;
+		let pendingIconRowPositions = null;
 		let clearIconEmptyRemoveHoverSuppression = null;
 		const ICON_VARIANT_LIMIT = 5;
 
@@ -1139,11 +1140,51 @@
 				normalizeIconName(row.label || row.name)
 			) === fromRowKey);
 			const targetIndex = rows.indexOf(targetRowData.sourceRow);
-			if (fromIndex < 0 || targetIndex < 0) return;
+			if (fromIndex < 0 || targetIndex < 0 || isIneffectiveIconRowDrop(fromIndex, targetIndex)) return;
 			const moved = rows.splice(fromIndex, 1)[0];
 			const insertIndex = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
 			rows.splice(insertIndex, 0, moved);
+			pendingIconRowPositions = getIconRowPositions();
 			renderActiveBrand();
+		}
+
+		function getIconRowIndex(rowKey, rowData) {
+			if (!rowKey || !rowData || !Array.isArray(rowData.sourceRows)) return -1;
+			return rowData.sourceRows.findIndex(row => row && getIconRowKey(
+				normalizeIconName(row.category || row.location || row.group || rowData.category || 'Icons'),
+				normalizeIconName(row.label || row.name)
+			) === rowKey);
+		}
+
+		function isIneffectiveIconRowDrop(fromIndex, toIndex) {
+			return fromIndex === toIndex || fromIndex + 1 === toIndex;
+		}
+
+		function getIconRowPositions() {
+			if (!iconComparisonList) return null;
+			const positions = {};
+			iconComparisonList.querySelectorAll('.icon-comparison-row[data-row-key]').forEach(row => {
+				positions[row.dataset.rowKey] = row.getBoundingClientRect();
+			});
+			return positions;
+		}
+
+		function animateIconRowsFrom(previousPositions) {
+			if (!iconComparisonList || !previousPositions || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+			iconComparisonList.querySelectorAll('.icon-comparison-row[data-row-key]').forEach(row => {
+				const previous = previousPositions[row.dataset.rowKey];
+				if (!previous || typeof row.animate !== 'function') return;
+				const current = row.getBoundingClientRect();
+				const deltaY = previous.top - current.top;
+				if (Math.abs(deltaY) < 1) return;
+				row.animate([
+					{ transform: `translateY(${deltaY}px)` },
+					{ transform: 'translateY(0)' }
+				], {
+					duration: 180,
+					easing: 'cubic-bezier(0.2, 0, 0, 1)'
+				});
+			});
 		}
 
 		function getDraggedIconPayload(e) {
@@ -1237,21 +1278,46 @@
 
 		function bindIconRowDropTarget(row, rowData, rowKey) {
 			if (!row || !rowData) return;
+			let dragLeaveTimer = null;
+
+			function clearDragLeaveTimer() {
+				if (!dragLeaveTimer) return;
+				window.clearTimeout(dragLeaveTimer);
+				dragLeaveTimer = null;
+			}
+
 			row.addEventListener('dragover', (e) => {
+				clearDragLeaveTimer();
 				const payload = draggedIconRow;
-				if (!payload || payload.rowKey === rowKey || payload.category !== rowData.category) return;
+				const fromIndex = payload ? getIconRowIndex(payload.rowKey, rowData) : -1;
+				const targetIndex = rowData.sourceRows ? rowData.sourceRows.indexOf(rowData.sourceRow) : -1;
+				if (!payload || payload.rowKey === rowKey || payload.category !== rowData.category || isIneffectiveIconRowDrop(fromIndex, targetIndex)) {
+					row.classList.remove('is-row-drag-target');
+					return;
+				}
 				e.preventDefault();
 				if (e.dataTransfer) {
 					e.dataTransfer.dropEffect = 'move';
 				}
 				row.classList.add('is-row-drag-target');
 			});
-			row.addEventListener('dragleave', () => {
-				row.classList.remove('is-row-drag-target');
+			row.addEventListener('dragleave', (e) => {
+				if (e.relatedTarget && row.contains(e.relatedTarget)) return;
+				const x = e.clientX;
+				const y = e.clientY;
+				clearDragLeaveTimer();
+				dragLeaveTimer = window.setTimeout(() => {
+					dragLeaveTimer = null;
+					const hoverElement = document.elementFromPoint(x, y);
+					if (draggedIconRow && hoverElement && row.contains(hoverElement)) return;
+					row.classList.remove('is-row-drag-target');
+				}, 40);
 			});
 			row.addEventListener('drop', (e) => {
 				const payload = getDraggedIconRowPayload(e);
-				if (!payload || payload.rowKey === rowKey || payload.category !== rowData.category) return;
+				const fromIndex = payload ? getIconRowIndex(payload.rowKey, rowData) : -1;
+				const targetIndex = rowData.sourceRows ? rowData.sourceRows.indexOf(rowData.sourceRow) : -1;
+				if (!payload || payload.rowKey === rowKey || payload.category !== rowData.category || isIneffectiveIconRowDrop(fromIndex, targetIndex)) return;
 				e.preventDefault();
 				clearIconRowDragState();
 				moveIconRow(payload.rowKey, rowData);
@@ -1260,7 +1326,7 @@
 
 		function applyIconGridColumns(element, count) {
 			if (!element) return;
-			element.style.gridTemplateColumns = `6.5rem repeat(${count}, 8rem) 6rem 1.5rem`;
+			element.style.gridTemplateColumns = `6.5rem repeat(${count}, 8rem) 4rem 1.5rem 2rem`;
 		}
 
 		function refreshLucideIcons(root) {
@@ -1370,6 +1436,7 @@
 				alphaSpacer.className = 'icon-alpha-label';
 				alphaSpacer.setAttribute('aria-hidden', 'true');
 				header.appendChild(alphaSpacer);
+				header.appendChild(document.createElement('div'));
 				content.appendChild(header);
 
 				group.rows.forEach((rowData, rowIndex) => {
@@ -1383,31 +1450,11 @@
 					row.dataset.rowKey = rowKey;
 					row.dataset.currentIndex = rowData.currentIndex;
 					applyIconGridColumns(row, indexes.length);
-					row.draggable = true;
 					bindIconRowDropTarget(row, rowData, rowKey);
-					row.addEventListener('dragstart', (e) => {
-						if (!e.target.closest('.icon-row-label, .icon-alpha-cell')) {
-							e.preventDefault();
-							return;
-						}
-						draggedIconRow = {
-							rowKey,
-							category: group.category
-						};
-						row.classList.add('is-row-dragging');
-						if (e.dataTransfer) {
-							const payload = JSON.stringify(draggedIconRow);
-							e.dataTransfer.effectAllowed = 'move';
-							e.dataTransfer.setData('application/x-brand-icon-row', payload);
-							e.dataTransfer.setData('text/plain', payload);
-						}
-					});
-					row.addEventListener('dragend', clearIconRowDragState);
 
 					const nameCell = document.createElement('button');
 					nameCell.type = 'button';
 					nameCell.className = 'icon-row-label';
-					nameCell.title = 'Drag to reorder';
 					nameCell.textContent = rowData.label;
 					nameCell.setAttribute('aria-label', `Exclusively highlight ${rowData.label}`);
 					nameCell.addEventListener('click', () => {
@@ -1656,6 +1703,34 @@
 					alphaCell.textContent = String.fromCharCode(65 + rowIndex);
 					row.appendChild(alphaCell);
 
+					const actionsCell = document.createElement('div');
+					actionsCell.className = 'icon-row-actions';
+					const dragHandle = document.createElement('button');
+					dragHandle.type = 'button';
+					dragHandle.className = 'icon-row-drag-handle';
+					dragHandle.draggable = true;
+					dragHandle.setAttribute('aria-label', `Reorder ${rowData.label}`);
+					dragHandle.title = 'Drag to reorder';
+					const dragHandleLine = document.createElement('span');
+					dragHandleLine.setAttribute('aria-hidden', 'true');
+					dragHandle.appendChild(dragHandleLine);
+					dragHandle.addEventListener('dragstart', (e) => {
+						draggedIconRow = {
+							rowKey,
+							category: group.category
+						};
+						row.classList.add('is-row-dragging');
+						if (e.dataTransfer) {
+							const payload = JSON.stringify(draggedIconRow);
+							e.dataTransfer.effectAllowed = 'move';
+							e.dataTransfer.setData('application/x-brand-icon-row', payload);
+							e.dataTransfer.setData('text/plain', payload);
+						}
+					});
+					dragHandle.addEventListener('dragend', clearIconRowDragState);
+					actionsCell.appendChild(dragHandle);
+					row.appendChild(actionsCell);
+
 					content.appendChild(row);
 				});
 
@@ -1666,6 +1741,10 @@
 
 			updateIconComparisonState();
 			refreshLucideIcons(iconComparisonList);
+			if (pendingIconRowPositions) {
+				animateIconRowsFrom(pendingIconRowPositions);
+				pendingIconRowPositions = null;
+			}
 			if (pendingIconInputFocus) {
 				const selector = `.icon-option-name[data-row-key="${escapeSelectorValue(pendingIconInputFocus.rowKey)}"][data-icon-index="${escapeSelectorValue(pendingIconInputFocus.index)}"]`;
 				const input = iconComparisonList.querySelector(selector);

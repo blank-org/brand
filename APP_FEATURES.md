@@ -46,7 +46,7 @@
 - Shows the current icon option and lets users select alternate variants.
 - Allows icon names to be edited inline; the edited name is used as the Lucide icon component.
 - Limits comparison rows to five icon variant slots.
-- Allows icon rows to be dragged into a new order and icon variants to be dragged within a row to rearrange or swap their slot order.
+- Allows icon rows to be dragged into a new order with a hover-only row handle and icon variants to be dragged within a row to rearrange or swap their slot order.
 - Allows icon variants to be moved left or right with inline arrow controls.
 - Removes an icon variant when its inline name is cleared, while the card eraser clears populated slots and changes to an x for removing already-empty slots.
 - Shows add controls in empty icon cells, with a hover-only top-right x in gap cells to shift later icons left.

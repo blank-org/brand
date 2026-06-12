@@ -369,6 +369,7 @@ body.preview-mode .font-source-toggles,
 body.preview-mode .font-card-meta .font-family-input,
 body.preview-mode .icon-comparison-header,
 body.preview-mode .icon-control-cell,
+body.preview-mode .icon-row-actions,
 body.preview-mode .colour-row-actions,
 body.preview-mode table thead {
 	display: none;
@@ -670,10 +671,13 @@ body.preview-mode.preview-indexes table td.serial {
 .icon-comparison-row {
 	position: relative;
 	margin-top: 12px;
+	transition: opacity 0.18s ease, transform 0.18s ease;
+	will-change: opacity, transform;
 }
 
 .icon-comparison-row.is-row-dragging {
-	opacity: 0.55;
+	opacity: 0.45;
+	transform: scale(0.995);
 }
 
 .icon-comparison-row.is-row-drag-target::before {
@@ -983,6 +987,62 @@ body.preview-mode.preview-indexes table td.serial {
 
 .icon-alpha-cell {
 	min-height: 112px;
+}
+
+.icon-row-actions {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	min-height: 112px;
+	transition: filter 0.2s ease, opacity 0.2s ease;
+}
+
+.icon-row-drag-handle {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-direction: column;
+	gap: 3px;
+	width: 30px;
+	height: 30px;
+	border: 0;
+	border-radius: 6px;
+	background: transparent;
+	color: var(--muted-text);
+	cursor: grab;
+	opacity: 0;
+	transform: translateX(2px) scale(0.92);
+	transition: background 0.18s ease, color 0.18s ease, opacity 0.18s ease, transform 0.18s ease;
+}
+
+.icon-row-drag-handle span,
+.icon-row-drag-handle::after {
+	display: block;
+	width: 16px;
+	height: 2px;
+	border-radius: 999px;
+	background: currentColor;
+	content: "";
+	transition: width 0.18s ease, opacity 0.18s ease;
+}
+
+.icon-comparison-row:hover .icon-row-drag-handle,
+.icon-row-drag-handle:focus-visible,
+.icon-comparison-row.is-row-dragging .icon-row-drag-handle {
+	opacity: 1;
+	transform: translateX(0) scale(1);
+}
+
+.icon-row-drag-handle:hover,
+.icon-row-drag-handle:focus-visible {
+	background: var(--preview-hover-bg);
+	color: var(--body-text);
+	outline: none;
+}
+
+.icon-row-drag-handle:active {
+	cursor: grabbing;
 }
 
 .icon-row-highlight {
@@ -1317,6 +1377,10 @@ table[aria-label="Brand colours table"] tbody tr.is-colour-row-drag-target td {
 }
 
 @media (prefers-reduced-motion: reduce) {
+	.icon-comparison-row,
+	.icon-row-drag-handle,
+	.icon-row-drag-handle span,
+	.icon-row-drag-handle::after,
 	table[aria-label="Brand colours table"] tbody tr,
 	table[aria-label="Brand colours table"] tbody tr td,
 	.colour-row-drag-handle,

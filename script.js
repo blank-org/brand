@@ -36,6 +36,8 @@
 		let pendingIconInputFocus = null;
 		let draggedIconVariant = null;
 		let draggedIconRow = null;
+		let draggedColourRow = null;
+		let pendingColourRowPositions = null;
 		let clearIconEmptyRemoveHoverSuppression = null;
 		const ICON_VARIANT_LIMIT = 5;
 
@@ -407,6 +409,167 @@
 			}
 		}
 
+		function getActiveColourSource() {
+			if (!activeBrandData) return null;
+			if (activeBrandThemes.length && activeThemeId) {
+				const theme = activeBrandThemes.find(item => item.id === activeThemeId);
+				if (theme && Array.isArray(theme.colours)) return theme.colours;
+			}
+			return Array.isArray(activeBrandData.colours) ? activeBrandData.colours : null;
+		}
+
+		function clearColourRowDragState() {
+			if (tbody) {
+				tbody.querySelectorAll('.is-colour-row-dragging, .is-colour-row-drag-target').forEach(element => {
+					element.classList.remove('is-colour-row-dragging', 'is-colour-row-drag-target');
+				});
+			}
+			draggedColourRow = null;
+		}
+
+		function getColourKeyParts(colour) {
+			if (!colour) return '';
+			return [
+				colour.name || '',
+				colour.hex || '',
+				colour.usage || '',
+				colour.remark || ''
+			].map(value => String(value)).join('|');
+		}
+
+		function getColourRenderKey(colour, occurrence) {
+			return `${getColourKeyParts(colour)}::${occurrence}`;
+		}
+
+		function getColourRenderKeys(colours) {
+			const counts = {};
+			return colours.map(colour => {
+				const key = getColourKeyParts(colour);
+				counts[key] = (counts[key] || 0) + 1;
+				return getColourRenderKey(colour, counts[key]);
+			});
+		}
+
+		function getColourRowPositions() {
+			if (!tbody) return null;
+			const positions = {};
+			tbody.querySelectorAll('tr[data-colour-key]').forEach(row => {
+				positions[row.dataset.colourKey] = row.getBoundingClientRect();
+			});
+			return positions;
+		}
+
+		function animateColourRowsFrom(previousPositions) {
+			if (!tbody || !previousPositions || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+			tbody.querySelectorAll('tr[data-colour-key]').forEach(row => {
+				const previous = previousPositions[row.dataset.colourKey];
+				if (!previous || typeof row.animate !== 'function') return;
+				const current = row.getBoundingClientRect();
+				const deltaY = previous.top - current.top;
+				if (Math.abs(deltaY) < 1) return;
+				Array.prototype.forEach.call(row.children, cell => {
+					if (typeof cell.animate !== 'function') return;
+					cell.animate([
+						{ transform: `translateY(${deltaY}px)` },
+						{ transform: 'translateY(0)' }
+					], {
+						duration: 180,
+						easing: 'cubic-bezier(0.2, 0, 0, 1)'
+					});
+				});
+			});
+		}
+
+		function moveColourRow(fromIndex, toIndex) {
+			const colours = getActiveColourSource();
+			if (!Array.isArray(colours)) return;
+			const startIndex = Number(fromIndex);
+			const targetIndex = Number(toIndex);
+			if (!Number.isInteger(startIndex) || !Number.isInteger(targetIndex) || isIneffectiveColourDrop(startIndex, targetIndex)) return;
+			if (startIndex < 0 || startIndex >= colours.length || targetIndex < 0 || targetIndex >= colours.length) return;
+			const moved = colours.splice(startIndex, 1)[0];
+			const insertIndex = Math.max(0, Math.min(startIndex < targetIndex ? targetIndex - 1 : targetIndex, colours.length));
+			colours.splice(insertIndex, 0, moved);
+			colours.forEach((colour, index) => {
+				if (colour) {
+					colour.id = index + 1;
+				}
+			});
+			pendingColourRowPositions = getColourRowPositions();
+			renderActiveBrand();
+		}
+
+		function isIneffectiveColourDrop(fromIndex, toIndex) {
+			return fromIndex === toIndex || fromIndex + 1 === toIndex;
+		}
+
+		function getColourRowDragPayload(e) {
+			if (!e || !e.dataTransfer) return draggedColourRow;
+			const text = e.dataTransfer.getData('application/x-brand-colour-row');
+			if (!text) return draggedColourRow;
+			try {
+				return JSON.parse(text);
+			} catch (err) {
+				return draggedColourRow;
+			}
+		}
+
+		function bindColourRowDrag(row, index) {
+			if (!row) return;
+			const handle = row.querySelector('.colour-row-drag-handle');
+			if (!handle) return;
+			let dragLeaveTimer = null;
+
+			function clearDragLeaveTimer() {
+				if (!dragLeaveTimer) return;
+				window.clearTimeout(dragLeaveTimer);
+				dragLeaveTimer = null;
+			}
+
+			handle.addEventListener('dragstart', (e) => {
+				draggedColourRow = { index };
+				row.classList.add('is-colour-row-dragging');
+				if (e.dataTransfer) {
+					e.dataTransfer.effectAllowed = 'move';
+					e.dataTransfer.setData('application/x-brand-colour-row', JSON.stringify(draggedColourRow));
+				}
+			});
+			handle.addEventListener('dragend', clearColourRowDragState);
+
+			row.addEventListener('dragover', (e) => {
+				clearDragLeaveTimer();
+				const payload = draggedColourRow;
+				if (!payload || isIneffectiveColourDrop(payload.index, index)) {
+					row.classList.remove('is-colour-row-drag-target');
+					return;
+				}
+				e.preventDefault();
+				if (e.dataTransfer) {
+					e.dataTransfer.dropEffect = 'move';
+				}
+				row.classList.add('is-colour-row-drag-target');
+			});
+			row.addEventListener('dragleave', (e) => {
+				if (e.relatedTarget && row.contains(e.relatedTarget)) return;
+				const x = e.clientX;
+				const y = e.clientY;
+				clearDragLeaveTimer();
+				dragLeaveTimer = window.setTimeout(() => {
+					dragLeaveTimer = null;
+					const hoverElement = document.elementFromPoint(x, y);
+					if (draggedColourRow && hoverElement && row.contains(hoverElement)) return;
+					row.classList.remove('is-colour-row-drag-target');
+				}, 40);
+			});
+			row.addEventListener('drop', (e) => {
+				const payload = getColourRowDragPayload(e);
+				if (!payload || isIneffectiveColourDrop(payload.index, index)) return;
+				e.preventDefault();
+				moveColourRow(payload.index, index);
+				clearColourRowDragState();
+			});
+		}
+
 		function setActiveBrand(brand, id) {
 			const previousBrandId = activeBrandId;
 			const previousThemeId = activeThemeId;
@@ -465,11 +628,21 @@
 				return;
 			}
 
-			data.forEach(item => {
+			const colourRenderKeys = getColourRenderKeys(data);
+
+			data.forEach((item, index) => {
 				const tr = document.createElement('tr');
-				tr.innerHTML = window.brandColourRowTemplate(item, { showSerial });
+				tr.dataset.colourIndex = String(index);
+				tr.dataset.colourKey = colourRenderKeys[index];
+				tr.innerHTML = window.brandColourRowTemplate(item, { showSerial, serial: index + 1 });
+				bindColourRowDrag(tr, index);
 				tbody.appendChild(tr);
 			});
+
+			if (pendingColourRowPositions) {
+				animateColourRowsFrom(pendingColourRowPositions);
+				pendingColourRowPositions = null;
+			}
 
 			renderFonts(brand);
 			renderIconComparison(brand);

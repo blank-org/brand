@@ -4,6 +4,7 @@
 	window.brandColourRowTemplate = function brandColourRowTemplate(item, options) {
 		const { id, hex, name, usage = '', remark = '' } = item;
 		const showSerial = !options || options.showSerial !== false;
+		const serial = options && options.serial !== undefined ? options.serial : id;
 		return `
 		<td>
 		<div class="swatch">
@@ -16,7 +17,12 @@
 		</td>
 		<td class="code">${hex}</td>
 		<td class="remark">${remark}</td>
-		${showSerial ? `<td class="serial">${id}</td>` : ''}
+		${showSerial ? `<td class="serial">${serial}</td>` : ''}
+		<td class="colour-row-actions">
+			<button class="colour-row-drag-handle" type="button" draggable="true" aria-label="Reorder ${name}" title="Drag to reorder">
+				<span aria-hidden="true"></span>
+			</button>
+		</td>
 	`;
 	};
 })();

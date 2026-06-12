@@ -13,6 +13,7 @@
 - Copies a colour hex value when a colour row control is clicked.
 - Supports keyboard copy interaction with Enter or Space.
 - Shows temporary copy success or failure feedback in the colour code cell.
+- Allows colour rows to be dragged into a new order with a hover-only row handle and updated serial numbers.
 
 ## Theme Support
 - Supports optional brand themes through a `themes` array in brand data.

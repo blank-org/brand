@@ -42,6 +42,7 @@
 ## Icon Comparison
 - Supports optional icon comparison data through `icons`, `iconComparison`, or `iconComparisons`.
 - Groups icon rows by category.
+- Shows each group label outside the group container at the top-right and allows it to be edited inline.
 - Renders icon variants using the Lucide browser runtime.
 - Shows the current icon option and lets users select alternate variants.
 - Allows icon names to be edited inline; the edited name is used as the Lucide icon component.

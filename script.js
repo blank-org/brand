@@ -864,7 +864,7 @@
 		function getIconGroups(brand) {
 			const source = brand && (brand.icons || brand.iconComparison || brand.iconComparisons);
 			if (!Array.isArray(source)) return [];
-			function addIconRow(acc, item, parentCategory, sourceRows) {
+			function addIconRow(acc, item, parentCategory, sourceRows, sourceCategoryItem) {
 				if (!item) return;
 				const label = normalizeIconName(item.label || item.name);
 				const category = normalizeIconName(parentCategory || item.category || item.location || item.group || 'Icons');
@@ -885,17 +885,17 @@
 				const currentIndex = item.currentIndex === undefined || item.currentIndex === null
 					? (firstActiveVariant ? firstActiveVariant.index : '')
 					: item.currentIndex;
-				acc.push({ label, category, currentIndex, variants, sourceRow: item, sourceRows });
+				acc.push({ label, category, currentIndex, variants, sourceRow: item, sourceRows, sourceCategoryItem });
 			}
 			return source.reduce((acc, item) => {
 				if (!item) return acc;
 				const parentCategory = normalizeIconName(item.category || item.location || item.group);
 				const children = item.rows || item.items || item.icons;
 				if (Array.isArray(children)) {
-					children.forEach(child => addIconRow(acc, child, parentCategory, children));
+					children.forEach(child => addIconRow(acc, child, parentCategory, children, item));
 					return acc;
 				}
-				addIconRow(acc, item, parentCategory, source);
+				addIconRow(acc, item, parentCategory, source, null);
 				return acc;
 			}, []);
 		}
@@ -915,6 +915,40 @@
 				byCategory[row.category].push(row);
 			});
 			return categories.map(category => ({ category, rows: byCategory[category] }));
+		}
+
+		function renameIconCategory(group, value) {
+			if (!group) return;
+			const name = normalizeIconName(value) || 'Icons';
+			if (name === group.category) return;
+
+			group.rows.forEach(row => {
+				if (!row || !row.sourceRow) return;
+				const source = row.sourceCategoryItem || row.sourceRow;
+				if (source.category !== undefined || !source.location && !source.group) {
+					source.category = name;
+				} else if (source.location !== undefined) {
+					source.location = name;
+				} else {
+					source.group = name;
+				}
+
+				const previousRowKey = getIconRowKey(group.category, row.label);
+				const nextRowKey = getIconRowKey(name, row.label);
+				if (selectedIconIndexes[previousRowKey] !== undefined) {
+					selectedIconIndexes[nextRowKey] = selectedIconIndexes[previousRowKey];
+					delete selectedIconIndexes[previousRowKey];
+				}
+				if (highlightedIconRows[previousRowKey] !== undefined) {
+					highlightedIconRows[nextRowKey] = highlightedIconRows[previousRowKey];
+					delete highlightedIconRows[previousRowKey];
+				}
+				if (exclusiveIconRowKey === previousRowKey) {
+					exclusiveIconRowKey = nextRowKey;
+				}
+			});
+
+			renderActiveBrand();
 		}
 
 		function getIconIndexes(rows) {
@@ -1407,9 +1441,29 @@
 				const section = document.createElement('section');
 				section.className = 'icon-comparison-category';
 
-				const label = document.createElement('div');
+				const label = document.createElement('input');
 				label.className = 'icon-category-label';
-				label.textContent = group.category;
+				label.type = 'text';
+				label.spellcheck = false;
+				label.value = group.category;
+				label.setAttribute('aria-label', `Edit ${group.category} group label`);
+				let categoryCommitted = false;
+				const commitCategoryLabel = () => {
+					if (categoryCommitted) return;
+					categoryCommitted = true;
+					renameIconCategory(group, label.value);
+				};
+				label.addEventListener('blur', commitCategoryLabel);
+				label.addEventListener('keydown', (e) => {
+					if (e.key === 'Enter') {
+						e.preventDefault();
+						commitCategoryLabel();
+					} else if (e.key === 'Escape') {
+						e.preventDefault();
+						label.value = group.category;
+						label.blur();
+					}
+				});
 				section.appendChild(label);
 
 				const scroller = document.createElement('div');

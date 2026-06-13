@@ -613,13 +613,14 @@ body.preview-mode.preview-indexes table td.serial {
 .icon-comparison-list {
 	display: flex;
 	flex-direction: column;
-	gap: 18px;
+	gap: 30px;
 }
 
 .icon-comparison-category {
 	position: relative;
 	box-sizing: border-box;
-	padding: 18px 20px 42px;
+	margin-top: 16px;
+	padding: 18px 20px 20px;
 	border-radius: 8px;
 	border: 1px solid var(--surface-border);
 	background: var(--surface-bg);
@@ -629,13 +630,28 @@ body.preview-mode.preview-indexes table td.serial {
 .icon-category-label {
 	position: absolute;
 	right: 20px;
-	bottom: 14px;
+	top: -27px;
+	box-sizing: border-box;
+	max-width: min(18rem, calc(100% - 40px));
+	height: 24px;
+	padding: 0 2px;
+	border: 0;
+	border-bottom: 1px solid transparent;
+	background: transparent;
 	font-size: 12px;
 	font-weight: 700;
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
 	color: var(--muted-text);
 	text-align: right;
+	outline: none;
+	transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.icon-category-label:hover,
+.icon-category-label:focus {
+	border-bottom-color: var(--accent-primary);
+	color: var(--accent-primary);
 }
 
 .icon-comparison-scroll {

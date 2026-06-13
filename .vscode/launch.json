@@ -1,0 +1,13 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Debug Brand Site",
+			"type": "chrome",
+			"request": "launch",
+			"url": "https://brandstudio.local",
+			"webRoot": "${workspaceFolder}",
+			"preLaunchTask": "Serve brand site"
+		}
+	]
+}

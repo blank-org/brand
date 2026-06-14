@@ -36,7 +36,9 @@
 		let pendingIconInputFocus = null;
 		let draggedIconVariant = null;
 		let draggedIconRow = null;
+		let draggedIconGroup = null;
 		let draggedFontSample = null;
+		let draggedFontGroup = null;
 		let draggedColourRow = null;
 		let draggedLogoFile = null;
 		let pendingColourRowPositions = null;
@@ -863,10 +865,23 @@
 			return str.replace(/["\\]/g, '\\$&');
 		}
 
+		function createGroupDragHandle(label) {
+			const handle = document.createElement('button');
+			handle.type = 'button';
+			handle.className = 'group-title-drag-handle';
+			handle.draggable = true;
+			handle.setAttribute('aria-label', `Reorder ${label || 'group'}`);
+			handle.title = 'Drag to reorder';
+			const handleLine = document.createElement('span');
+			handleLine.setAttribute('aria-hidden', 'true');
+			handle.appendChild(handleLine);
+			return handle;
+		}
+
 		function getIconGroups(brand) {
 			const source = brand && (brand.icons || brand.iconComparison || brand.iconComparisons);
 			if (!Array.isArray(source)) return [];
-			function addIconRow(acc, item, parentCategory, sourceRows, sourceCategoryItem) {
+			function addIconRow(acc, item, parentCategory, sourceRows, sourceCategoryItem, sourceRootRows) {
 				if (!item) return;
 				const label = normalizeIconName(item.label || item.name);
 				const category = normalizeIconName(parentCategory || item.category || item.location || item.group || 'Icons');
@@ -887,17 +902,17 @@
 				const currentIndex = item.currentIndex === undefined || item.currentIndex === null
 					? (firstActiveVariant ? firstActiveVariant.index : '')
 					: item.currentIndex;
-				acc.push({ label, category, currentIndex, variants, sourceRow: item, sourceRows, sourceCategoryItem });
+				acc.push({ label, category, currentIndex, variants, sourceRow: item, sourceRows, sourceCategoryItem, sourceRootRows });
 			}
 			return source.reduce((acc, item) => {
 				if (!item) return acc;
 				const parentCategory = normalizeIconName(item.category || item.location || item.group);
 				const children = item.rows || item.items || item.icons;
 				if (Array.isArray(children)) {
-					children.forEach(child => addIconRow(acc, child, parentCategory, children, item));
+					children.forEach(child => addIconRow(acc, child, parentCategory, children, item, source));
 					return acc;
 				}
-				addIconRow(acc, item, parentCategory, source, null);
+				addIconRow(acc, item, parentCategory, source, null, source);
 				return acc;
 			}, []);
 		}
@@ -916,7 +931,16 @@
 				}
 				byCategory[row.category].push(row);
 			});
-			return categories.map(category => ({ category, rows: byCategory[category] }));
+			return categories.map(category => {
+				const groupRows = byCategory[category];
+				const firstRow = groupRows[0] || {};
+				return {
+					category,
+					rows: groupRows,
+					sourceCategoryItem: firstRow.sourceCategoryItem || null,
+					sourceRootRows: firstRow.sourceRootRows || firstRow.sourceRows || null
+				};
+			});
 		}
 
 		function renameIconCategory(group, value) {
@@ -1196,6 +1220,96 @@
 			return fromIndex === toIndex || fromIndex + 1 === toIndex;
 		}
 
+		function getIconGroupIndex(category, sourceRows) {
+			if (!category || !Array.isArray(sourceRows)) return -1;
+			return sourceRows.findIndex(item => {
+				if (!item) return false;
+				const children = item.rows || item.items || item.icons;
+				const itemCategory = normalizeIconName(item.category || item.location || item.group || (Array.isArray(children) ? item.label || item.name : 'Icons'));
+				return itemCategory === category;
+			});
+		}
+
+		function canMoveIconGroup(fromCategory, targetGroup) {
+			if (!fromCategory || !targetGroup || fromCategory === targetGroup.category || !Array.isArray(targetGroup.sourceRootRows)) return false;
+			return getIconGroupIndex(fromCategory, targetGroup.sourceRootRows) >= 0 && getIconGroupIndex(targetGroup.category, targetGroup.sourceRootRows) >= 0;
+		}
+
+		function moveIconGroup(fromCategory, targetGroup) {
+			if (!canMoveIconGroup(fromCategory, targetGroup)) return;
+			const source = targetGroup.sourceRootRows;
+			const fromIndex = getIconGroupIndex(fromCategory, source);
+			const targetIndex = getIconGroupIndex(targetGroup.category, source);
+			if (fromIndex < 0 || targetIndex < 0 || fromIndex === targetIndex) return;
+			const moved = source.splice(fromIndex, 1)[0];
+			const insertIndex = Math.max(0, Math.min(targetIndex, source.length));
+			source.splice(insertIndex, 0, moved);
+			renderActiveBrand();
+		}
+
+		function clearIconGroupDragState() {
+			if (iconComparisonList) {
+				iconComparisonList.querySelectorAll('.is-group-dragging, .is-group-drag-target, .is-group-drop-after').forEach(element => {
+					element.classList.remove('is-group-dragging', 'is-group-drag-target', 'is-group-drop-after');
+				});
+			}
+			draggedIconGroup = null;
+		}
+
+		function getDraggedIconGroupPayload(e) {
+			if (!e || !e.dataTransfer) return draggedIconGroup;
+			const text = e.dataTransfer.getData('application/x-brand-icon-group');
+			if (!text) return draggedIconGroup;
+			try {
+				return JSON.parse(text);
+			} catch (err) {
+				return draggedIconGroup;
+			}
+		}
+
+		function bindIconGroupDrag(section, handle, group) {
+			if (!section || !handle || !group) return;
+			handle.addEventListener('dragstart', (e) => {
+				draggedIconGroup = {
+					category: group.category
+				};
+				section.classList.add('is-group-dragging');
+				if (e.dataTransfer) {
+					const payload = JSON.stringify(draggedIconGroup);
+					e.dataTransfer.effectAllowed = 'move';
+					e.dataTransfer.setData('application/x-brand-icon-group', payload);
+					e.dataTransfer.setData('text/plain', payload);
+				}
+			});
+			handle.addEventListener('dragend', clearIconGroupDragState);
+			section.addEventListener('dragover', (e) => {
+				const payload = draggedIconGroup;
+				if (!payload || !canMoveIconGroup(payload.category, group)) {
+					section.classList.remove('is-group-drag-target', 'is-group-drop-after');
+					return;
+				}
+				e.preventDefault();
+				if (e.dataTransfer) {
+					e.dataTransfer.dropEffect = 'move';
+				}
+				const fromIndex = getIconGroupIndex(payload.category, group.sourceRootRows);
+				const targetIndex = getIconGroupIndex(group.category, group.sourceRootRows);
+				section.classList.add('is-group-drag-target');
+				section.classList.toggle('is-group-drop-after', fromIndex < targetIndex);
+			});
+			section.addEventListener('dragleave', (e) => {
+				if (e.relatedTarget && section.contains(e.relatedTarget)) return;
+				section.classList.remove('is-group-drag-target', 'is-group-drop-after');
+			});
+			section.addEventListener('drop', (e) => {
+				const payload = getDraggedIconGroupPayload(e);
+				if (!payload || !canMoveIconGroup(payload.category, group)) return;
+				e.preventDefault();
+				clearIconGroupDragState();
+				moveIconGroup(payload.category, group);
+			});
+		}
+
 		function getIconRowPositions() {
 			if (!iconComparisonList) return null;
 			const positions = {};
@@ -1443,6 +1557,10 @@
 				const section = document.createElement('section');
 				section.className = 'icon-comparison-category';
 
+				const titleBar = document.createElement('div');
+				titleBar.className = 'group-title-bar icon-group-title-bar';
+
+				const dragHandle = createGroupDragHandle(group.category);
 				const label = document.createElement('input');
 				label.className = 'icon-category-label';
 				label.type = 'text';
@@ -1466,7 +1584,10 @@
 						label.blur();
 					}
 				});
-				section.appendChild(label);
+				titleBar.appendChild(label);
+				titleBar.appendChild(dragHandle);
+				section.appendChild(titleBar);
+				bindIconGroupDrag(section, dragHandle, group);
 
 				const scroller = document.createElement('div');
 				scroller.className = 'icon-comparison-scroll';
@@ -1818,12 +1939,12 @@
 			const groups = [];
 			const standaloneRows = [];
 
-			function addFontRow(acc, font, sourceRows, sourceCategoryItem, parentCategory) {
+			function addFontRow(acc, font, sourceRows, sourceCategoryItem, parentCategory, sourceRootRows) {
 				if (!font) return;
 				const hasFontFields = font.family !== undefined || font.sampleText !== undefined || font.weight !== undefined || font.usage !== undefined || font.color !== undefined;
 				if (!hasFontFields && (Array.isArray(font.rows) || Array.isArray(font.items) || Array.isArray(font.fonts))) return;
 				const category = normalizeIconName(parentCategory || font.category || font.location || font.group || defaultCategory);
-				acc.push({ category, font, sourceRows, sourceCategoryItem });
+				acc.push({ category, font, sourceRows, sourceCategoryItem, sourceRootRows });
 			}
 
 			source.forEach(item => {
@@ -1832,14 +1953,14 @@
 				const children = item.rows || item.items || item.fonts;
 				if (Array.isArray(children)) {
 					const rows = [];
-					children.forEach(child => addFontRow(rows, child, children, item, parentCategory || defaultCategory));
+					children.forEach(child => addFontRow(rows, child, children, item, parentCategory || defaultCategory, source));
 					if (rows.length) {
-						groups.push({ category: parentCategory || defaultCategory, rows });
+						groups.push({ category: parentCategory || defaultCategory, rows, sourceCategoryItem: item, sourceRootRows: source });
 					}
 					return;
 				}
 				const itemCategory = normalizeIconName(item.category || item.location || item.group || defaultCategory);
-				addFontRow(standaloneRows, item, source, null, itemCategory);
+				addFontRow(standaloneRows, item, source, null, itemCategory, source);
 			});
 
 			if (standaloneRows.length) {
@@ -1853,7 +1974,7 @@
 					byCategory[row.category].push(row);
 				});
 				categories.reverse().forEach(category => {
-					groups.unshift({ category, rows: byCategory[category] });
+					groups.unshift({ category, rows: byCategory[category], sourceCategoryItem: null, sourceRootRows: source });
 				});
 			}
 			return groups;
@@ -2046,6 +2167,103 @@
 			});
 		}
 
+		function getFontGroupIndex(group) {
+			if (!group || !group.sourceCategoryItem || !Array.isArray(group.sourceRootRows)) return -1;
+			return group.sourceRootRows.indexOf(group.sourceCategoryItem);
+		}
+
+		function getFontGroupIndexByCategory(category, sourceRows) {
+			if (!category || !Array.isArray(sourceRows)) return -1;
+			return sourceRows.findIndex(item => {
+				if (!item) return false;
+				const children = item.rows || item.items || item.fonts;
+				if (!Array.isArray(children)) return false;
+				const itemCategory = normalizeIconName(item.category || item.location || item.group || item.label || item.name || 'Typography');
+				return itemCategory === category;
+			});
+		}
+
+		function canMoveFontGroup(fromCategory, targetGroup) {
+			if (!fromCategory || !targetGroup || fromCategory === targetGroup.category || !Array.isArray(targetGroup.sourceRootRows)) return false;
+			return getFontGroupIndexByCategory(fromCategory, targetGroup.sourceRootRows) >= 0 && getFontGroupIndex(targetGroup) >= 0;
+		}
+
+		function moveFontGroup(fromCategory, targetGroup) {
+			if (!canMoveFontGroup(fromCategory, targetGroup)) return;
+			const source = targetGroup.sourceRootRows;
+			const fromIndex = getFontGroupIndexByCategory(fromCategory, source);
+			const targetIndex = getFontGroupIndex(targetGroup);
+			if (fromIndex < 0 || targetIndex < 0 || fromIndex === targetIndex) return;
+			const moved = source.splice(fromIndex, 1)[0];
+			const insertIndex = Math.max(0, Math.min(targetIndex, source.length));
+			source.splice(insertIndex, 0, moved);
+			renderActiveBrand();
+		}
+
+		function clearFontGroupDragState() {
+			const fontSamples = document.getElementById('font-samples');
+			if (fontSamples) {
+				fontSamples.querySelectorAll('.is-group-dragging, .is-group-drag-target, .is-group-drop-after').forEach(element => {
+					element.classList.remove('is-group-dragging', 'is-group-drag-target', 'is-group-drop-after');
+				});
+			}
+			draggedFontGroup = null;
+		}
+
+		function getDraggedFontGroupPayload(e) {
+			if (!e || !e.dataTransfer) return draggedFontGroup;
+			const text = e.dataTransfer.getData('application/x-brand-font-group');
+			if (!text) return draggedFontGroup;
+			try {
+				return JSON.parse(text);
+			} catch (err) {
+				return draggedFontGroup;
+			}
+		}
+
+		function bindFontGroupDrag(section, handle, group) {
+			if (!section || !handle || !group) return;
+			handle.addEventListener('dragstart', (e) => {
+				draggedFontGroup = {
+					category: group.category
+				};
+				section.classList.add('is-group-dragging');
+				if (e.dataTransfer) {
+					const payload = JSON.stringify(draggedFontGroup);
+					e.dataTransfer.effectAllowed = 'move';
+					e.dataTransfer.setData('application/x-brand-font-group', payload);
+					e.dataTransfer.setData('text/plain', payload);
+				}
+			});
+			handle.addEventListener('dragend', clearFontGroupDragState);
+			section.addEventListener('dragover', (e) => {
+				const payload = draggedFontGroup;
+				if (!payload || !canMoveFontGroup(payload.category, group)) {
+					section.classList.remove('is-group-drag-target', 'is-group-drop-after');
+					return;
+				}
+				e.preventDefault();
+				if (e.dataTransfer) {
+					e.dataTransfer.dropEffect = 'move';
+				}
+				const fromIndex = getFontGroupIndexByCategory(payload.category, group.sourceRootRows);
+				const targetIndex = getFontGroupIndex(group);
+				section.classList.add('is-group-drag-target');
+				section.classList.toggle('is-group-drop-after', fromIndex < targetIndex);
+			});
+			section.addEventListener('dragleave', (e) => {
+				if (e.relatedTarget && section.contains(e.relatedTarget)) return;
+				section.classList.remove('is-group-drag-target', 'is-group-drop-after');
+			});
+			section.addEventListener('drop', (e) => {
+				const payload = getDraggedFontGroupPayload(e);
+				if (!payload || !canMoveFontGroup(payload.category, group)) return;
+				e.preventDefault();
+				clearFontGroupDragState();
+				moveFontGroup(payload.category, group);
+			});
+		}
+
 		function renderFonts(brand) {
 			const fontSamples = document.getElementById('font-samples');
 			if (!fontSamples) return;
@@ -2070,6 +2288,10 @@
 				const section = document.createElement('section');
 				section.className = 'font-sample-category';
 
+				const titleBar = document.createElement('div');
+				titleBar.className = 'group-title-bar font-group-title-bar';
+
+				const dragHandle = createGroupDragHandle(group.category);
 				const label = document.createElement('input');
 				label.className = 'font-category-label';
 				label.type = 'text';
@@ -2093,7 +2315,10 @@
 						label.blur();
 					}
 				});
-				section.appendChild(label);
+				titleBar.appendChild(label);
+				titleBar.appendChild(dragHandle);
+				section.appendChild(titleBar);
+				bindFontGroupDrag(section, dragHandle, group);
 
 				group.rows.forEach(rowData => {
 				const font = rowData.font;

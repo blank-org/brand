@@ -40,6 +40,7 @@
 - Provides colour selection from the brand palette and a native colour picker for custom values.
 - Allows Google Font loading for a named font family and tracks loading, synced, and idle states.
 - Allows font samples to be dragged into a new order within the same font group.
+- Shows a hover-only drag handle beside grouped font titles and allows grouped font sections to be reordered when backed by grouped brand data.
 
 ## Icon Comparison
 - Supports optional icon comparison data through `icons`, `iconComparison`, or `iconComparisons`.
@@ -50,6 +51,7 @@
 - Allows icon names to be edited inline; the edited name is used as the Lucide icon component.
 - Limits comparison rows to five icon variant slots.
 - Allows icon rows to be dragged into a new order with a hover-only row handle and icon variants to be dragged within a row to rearrange or swap their slot order.
+- Shows a hover-only drag handle beside grouped icon titles and allows grouped icon sections to be reordered.
 - Allows icon variants to be moved left or right with inline arrow controls.
 - Removes an icon variant when its inline name is cleared, while the card eraser clears populated slots and changes to an x for removing already-empty slots.
 - Shows add controls in empty icon cells, with a hover-only top-right x in gap cells to shift later icons left.

@@ -36,10 +36,12 @@
 		let pendingIconInputFocus = null;
 		let draggedIconVariant = null;
 		let draggedIconRow = null;
+		let draggedFontSample = null;
 		let draggedColourRow = null;
 		let draggedLogoFile = null;
 		let pendingColourRowPositions = null;
 		let pendingIconRowPositions = null;
+		let pendingFontSamplePositions = null;
 		let clearIconEmptyRemoveHoverSuppression = null;
 		const ICON_VARIANT_LIMIT = 5;
 
@@ -1809,11 +1811,246 @@
 			}
 		}
 
+		function getFontGroups(brand) {
+			const source = brand && brand.fonts;
+			if (!Array.isArray(source)) return [];
+			const defaultCategory = normalizeIconName(brand.fontsLabel || brand.fontCategory || brand.fontGroup || 'Typography');
+			const groups = [];
+			const standaloneRows = [];
+
+			function addFontRow(acc, font, sourceRows, sourceCategoryItem, parentCategory) {
+				if (!font) return;
+				const hasFontFields = font.family !== undefined || font.sampleText !== undefined || font.weight !== undefined || font.usage !== undefined || font.color !== undefined;
+				if (!hasFontFields && (Array.isArray(font.rows) || Array.isArray(font.items) || Array.isArray(font.fonts))) return;
+				const category = normalizeIconName(parentCategory || font.category || font.location || font.group || defaultCategory);
+				acc.push({ category, font, sourceRows, sourceCategoryItem });
+			}
+
+			source.forEach(item => {
+				if (!item) return;
+				const parentCategory = normalizeIconName(item.category || item.location || item.group || item.label || item.name);
+				const children = item.rows || item.items || item.fonts;
+				if (Array.isArray(children)) {
+					const rows = [];
+					children.forEach(child => addFontRow(rows, child, children, item, parentCategory || defaultCategory));
+					if (rows.length) {
+						groups.push({ category: parentCategory || defaultCategory, rows });
+					}
+					return;
+				}
+				const itemCategory = normalizeIconName(item.category || item.location || item.group || defaultCategory);
+				addFontRow(standaloneRows, item, source, null, itemCategory);
+			});
+
+			if (standaloneRows.length) {
+				const categories = [];
+				const byCategory = {};
+				standaloneRows.forEach(row => {
+					if (!byCategory[row.category]) {
+						byCategory[row.category] = [];
+						categories.push(row.category);
+					}
+					byCategory[row.category].push(row);
+				});
+				categories.reverse().forEach(category => {
+					groups.unshift({ category, rows: byCategory[category] });
+				});
+			}
+			return groups;
+		}
+
+		function getFontKey(category, font, occurrence) {
+			if (!font) return `${category}::${occurrence}`;
+			return [
+				category || '',
+				font.name || '',
+				font.family || '',
+				font.weight || '',
+				font.sampleText || '',
+				occurrence
+			].map(value => String(value)).join('::');
+		}
+
+		function renameFontCategory(group, value) {
+			if (!group) return;
+			const name = normalizeIconName(value) || 'Typography';
+			if (name === group.category) return;
+
+			group.rows.forEach(row => {
+				if (!row) return;
+				if (row.sourceCategoryItem) {
+					const source = row.sourceCategoryItem;
+					if (source.category !== undefined || !source.location && !source.group && !source.label) {
+						source.category = name;
+					} else if (source.location !== undefined) {
+						source.location = name;
+					} else if (source.group !== undefined) {
+						source.group = name;
+					} else {
+						source.label = name;
+					}
+				} else if (row.font) {
+					if (row.font.category !== undefined || row.font.location === undefined && row.font.group === undefined) {
+						row.font.category = name;
+					} else if (row.font.location !== undefined) {
+						row.font.location = name;
+					} else {
+						row.font.group = name;
+					}
+				}
+			});
+
+			renderActiveBrand();
+		}
+
+		function clearFontSampleDragState() {
+			const fontSamples = document.getElementById('font-samples');
+			if (fontSamples) {
+				fontSamples.querySelectorAll('.is-font-dragging, .is-font-drag-target').forEach(element => {
+					element.classList.remove('is-font-dragging', 'is-font-drag-target');
+				});
+			}
+			draggedFontSample = null;
+		}
+
+		function getFontSampleIndex(fontKey, rowData) {
+			if (!fontKey || !rowData || !Array.isArray(rowData.sourceRows)) return -1;
+			const counts = {};
+			return rowData.sourceRows.findIndex(font => {
+				const category = normalizeIconName(rowData.category || font.category || font.location || font.group || 'Typography');
+				const base = getFontKey(category, font, 0);
+				counts[base] = (counts[base] || 0) + 1;
+				return getFontKey(category, font, counts[base]) === fontKey;
+			});
+		}
+
+		function isIneffectiveFontDrop(fromIndex, toIndex) {
+			return fromIndex === toIndex || fromIndex + 1 === toIndex;
+		}
+
+		function getDraggedFontPayload(e) {
+			if (!e || !e.dataTransfer) return draggedFontSample;
+			const text = e.dataTransfer.getData('application/x-brand-font');
+			if (!text) return draggedFontSample;
+			try {
+				return JSON.parse(text);
+			} catch (err) {
+				return draggedFontSample;
+			}
+		}
+
+		function getFontSamplePositions() {
+			const fontSamples = document.getElementById('font-samples');
+			if (!fontSamples) return null;
+			const positions = {};
+			fontSamples.querySelectorAll('.font-sample[data-font-key]').forEach(sample => {
+				positions[sample.dataset.fontKey] = sample.getBoundingClientRect();
+			});
+			return positions;
+		}
+
+		function animateFontSamplesFrom(previousPositions) {
+			const fontSamples = document.getElementById('font-samples');
+			if (!fontSamples || !previousPositions || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+			fontSamples.querySelectorAll('.font-sample[data-font-key]').forEach(sample => {
+				const previous = previousPositions[sample.dataset.fontKey];
+				if (!previous || typeof sample.animate !== 'function') return;
+				const current = sample.getBoundingClientRect();
+				const deltaY = previous.top - current.top;
+				if (Math.abs(deltaY) < 1) return;
+				sample.animate([
+					{ transform: `translateY(${deltaY}px)` },
+					{ transform: 'translateY(0)' }
+				], {
+					duration: 180,
+					easing: 'cubic-bezier(0.2, 0, 0, 1)'
+				});
+			});
+		}
+
+		function moveFontSample(fromFontKey, targetRowData) {
+			if (!fromFontKey || !targetRowData || !Array.isArray(targetRowData.sourceRows)) return;
+			const rows = targetRowData.sourceRows;
+			const targetIndex = rows.indexOf(targetRowData.font);
+			const fromIndex = getFontSampleIndex(fromFontKey, targetRowData);
+			if (fromIndex < 0 || targetIndex < 0 || isIneffectiveFontDrop(fromIndex, targetIndex)) return;
+			const moved = rows.splice(fromIndex, 1)[0];
+			const insertIndex = Math.max(0, Math.min(fromIndex < targetIndex ? targetIndex - 1 : targetIndex, rows.length));
+			rows.splice(insertIndex, 0, moved);
+			pendingFontSamplePositions = getFontSamplePositions();
+			renderActiveBrand();
+		}
+
+		function bindFontSampleDrag(sample, rowData, fontKey) {
+			if (!sample || !rowData) return;
+			const handle = sample.querySelector('.font-sample-drag-handle');
+			if (!handle) return;
+			let dragLeaveTimer = null;
+
+			function clearDragLeaveTimer() {
+				if (!dragLeaveTimer) return;
+				window.clearTimeout(dragLeaveTimer);
+				dragLeaveTimer = null;
+			}
+
+			handle.addEventListener('dragstart', (e) => {
+				draggedFontSample = {
+					fontKey,
+					category: rowData.category
+				};
+				sample.classList.add('is-font-dragging');
+				if (e.dataTransfer) {
+					const payload = JSON.stringify(draggedFontSample);
+					e.dataTransfer.effectAllowed = 'move';
+					e.dataTransfer.setData('application/x-brand-font', payload);
+					e.dataTransfer.setData('text/plain', payload);
+				}
+			});
+			handle.addEventListener('dragend', clearFontSampleDragState);
+
+			sample.addEventListener('dragover', (e) => {
+				clearDragLeaveTimer();
+				const payload = draggedFontSample;
+				const fromIndex = payload ? getFontSampleIndex(payload.fontKey, rowData) : -1;
+				const targetIndex = rowData.sourceRows ? rowData.sourceRows.indexOf(rowData.font) : -1;
+				if (!payload || payload.category !== rowData.category || isIneffectiveFontDrop(fromIndex, targetIndex)) {
+					sample.classList.remove('is-font-drag-target');
+					return;
+				}
+				e.preventDefault();
+				if (e.dataTransfer) {
+					e.dataTransfer.dropEffect = 'move';
+				}
+				sample.classList.add('is-font-drag-target');
+			});
+			sample.addEventListener('dragleave', (e) => {
+				if (e.relatedTarget && sample.contains(e.relatedTarget)) return;
+				const x = e.clientX;
+				const y = e.clientY;
+				clearDragLeaveTimer();
+				dragLeaveTimer = window.setTimeout(() => {
+					dragLeaveTimer = null;
+					const hoverElement = document.elementFromPoint(x, y);
+					if (draggedFontSample && hoverElement && sample.contains(hoverElement)) return;
+					sample.classList.remove('is-font-drag-target');
+				}, 40);
+			});
+			sample.addEventListener('drop', (e) => {
+				const payload = getDraggedFontPayload(e);
+				const fromIndex = payload ? getFontSampleIndex(payload.fontKey, rowData) : -1;
+				const targetIndex = rowData.sourceRows ? rowData.sourceRows.indexOf(rowData.font) : -1;
+				if (!payload || payload.category !== rowData.category || isIneffectiveFontDrop(fromIndex, targetIndex)) return;
+				e.preventDefault();
+				clearFontSampleDragState();
+				moveFontSample(payload.fontKey, rowData);
+			});
+		}
+
 		function renderFonts(brand) {
 			const fontSamples = document.getElementById('font-samples');
 			if (!fontSamples) return;
 
-			const fonts = brand.fonts || [];
+			const fontGroups = getFontGroups(brand);
 			fontSelectMenus.forEach(menu => {
 				if (menu && typeof menu.destroy === 'function') {
 					menu.destroy();
@@ -1821,13 +2058,50 @@
 			});
 			fontSelectMenus.length = 0;
 			fontSamples.innerHTML = '';
-			if (fonts.length === 0) {
+			if (fontGroups.length === 0) {
 				return;
 			}
 
 			const brandColours = Array.isArray(brand.colours) ? brand.colours : [];
+			let fontSerial = 0;
+			const fontKeyCounts = {};
 
-			fonts.forEach((font, index) => {
+			fontGroups.forEach(group => {
+				const section = document.createElement('section');
+				section.className = 'font-sample-category';
+
+				const label = document.createElement('input');
+				label.className = 'font-category-label';
+				label.type = 'text';
+				label.spellcheck = false;
+				label.value = group.category;
+				label.setAttribute('aria-label', `Edit ${group.category} font group label`);
+				let categoryCommitted = false;
+				const commitCategoryLabel = () => {
+					if (categoryCommitted) return;
+					categoryCommitted = true;
+					renameFontCategory(group, label.value);
+				};
+				label.addEventListener('blur', commitCategoryLabel);
+				label.addEventListener('keydown', (e) => {
+					if (e.key === 'Enter') {
+						e.preventDefault();
+						commitCategoryLabel();
+					} else if (e.key === 'Escape') {
+						e.preventDefault();
+						label.value = group.category;
+						label.blur();
+					}
+				});
+				section.appendChild(label);
+
+				group.rows.forEach(rowData => {
+				const font = rowData.font;
+				const index = fontSerial;
+				fontSerial += 1;
+				const baseFontKey = getFontKey(group.category, font, 0);
+				fontKeyCounts[baseFontKey] = (fontKeyCounts[baseFontKey] || 0) + 1;
+				const fontKey = getFontKey(group.category, font, fontKeyCounts[baseFontKey]);
 				const sampleText = font.sampleText || 'Lorem ipsum dolor sit amet, consectetur adipiscing elit';
 				let color = font.color;
 				const brandColourMatch = brandColours.find(c => c.name === color);
@@ -1840,6 +2114,8 @@
 
 				const fontSampleDiv = document.createElement('div');
 				fontSampleDiv.classList.add('font-sample');
+				fontSampleDiv.dataset.fontKey = fontKey;
+				fontSampleDiv.style.setProperty('--font-sample-color', color);
 				if (typeof window.fontSampleTemplate !== 'function') {
 					console.error('fontSampleTemplate component is not available.');
 					fontSampleDiv.innerHTML = '';
@@ -1855,11 +2131,32 @@
 					fontCardFooter.insertBefore(fontIndex, fontCardFooter.firstChild);
 				}
 
+				const fontCard = fontSampleDiv.querySelector('.font-card');
+				if (fontCard) {
+					const actions = document.createElement('div');
+					actions.className = 'font-sample-actions';
+					const dragHandle = document.createElement('button');
+					dragHandle.type = 'button';
+					dragHandle.className = 'font-sample-drag-handle';
+					dragHandle.draggable = true;
+					dragHandle.setAttribute('aria-label', `Reorder ${font.name || 'font sample'}`);
+					dragHandle.title = 'Drag to reorder';
+					const dragHandleLine = document.createElement('span');
+					dragHandleLine.setAttribute('aria-hidden', 'true');
+					dragHandle.appendChild(dragHandleLine);
+					actions.appendChild(dragHandle);
+					fontCard.appendChild(actions);
+					bindFontSampleDrag(fontSampleDiv, rowData, fontKey);
+				}
+
 				const fontSampleText = fontSampleDiv.querySelector('.font-sample-text');
+				if (fontSampleText) {
+					fontSampleText.style.color = color;
+				}
 				const fontControls = fontSampleDiv.querySelector('.font-controls');
 				const colorPickerSlot = fontSampleDiv.querySelector('.color-picker-slot');
 				if (!fontControls) {
-					fontSamples.appendChild(fontSampleDiv);
+					section.appendChild(fontSampleDiv);
 					return;
 				}
 				const fontSourceToggles = fontSampleDiv.querySelectorAll('.font-source-toggle');
@@ -1954,6 +2251,7 @@
 				function applyColorValue(nextColor) {
 					if (!nextColor) return;
 					font.color = nextColor;
+					fontSampleDiv.style.setProperty('--font-sample-color', nextColor);
 					if (fontSampleText) {
 						fontSampleText.style.color = nextColor;
 					}
@@ -2128,11 +2426,18 @@
 					});
 				}
 
-				fontSamples.appendChild(fontSampleDiv);
+				section.appendChild(fontSampleDiv);
 				if (colorMenu && typeof colorMenu.update === 'function') {
 					requestAnimationFrame(() => colorMenu.update());
 				}
 			});
+				fontSamples.appendChild(section);
+			});
+
+			if (pendingFontSamplePositions) {
+				animateFontSamplesFrom(pendingFontSamplePositions);
+				pendingFontSamplePositions = null;
+			}
 		}
 
 			function createCustomSelect(selectElement, config) {
@@ -2232,11 +2537,17 @@
 
 			const closeDropdown = () => {
 				items.classList.add('select-hide');
+				customSelect.classList.remove('is-open');
+				const sample = customSelect.closest('.font-sample');
+				if (sample) sample.classList.remove('has-open-select');
 				selected.setAttribute('aria-expanded', 'false');
 			};
 
 			const openDropdown = () => {
 				items.classList.remove('select-hide');
+				customSelect.classList.add('is-open');
+				const sample = customSelect.closest('.font-sample');
+				if (sample) sample.classList.add('has-open-select');
 				selected.setAttribute('aria-expanded', 'true');
 			};
 

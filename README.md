@@ -24,6 +24,9 @@ Because everything is static, you can double-click `brand.html` to open it in a 
 ## Icon Comparison Data
 Icon comparison rows are optional. Add an `icons` array to a brand with parent category objects, e.g. `{ category: "Sidebar", rows: [...] }`. Each row should include `label`, `currentIndex`, and `variants`. Each variant uses a Lucide component name string, e.g. `{ index: 1, icon: "LayoutDashboard", name: "LayoutDashboard" }`. The static page converts the name for the browser Lucide runtime; TSX surfaces can resolve the same string against `lucide-react`.
 
+## Typography Data
+Font samples may be flat, e.g. `fonts: [{ name, family, weight, sampleText }]`, or grouped like icon comparisons, e.g. `fonts: [{ category: "Headings", rows: [{ name, family, weight, sampleText }] }]`. Group labels are editable in the UI, and font samples can be reordered within their group.
+
 ## Notes
 - Colour swatches expose `role="button"`, keyboard interaction, and clipboard feedback for accessibility.
 - If you introduce tooling (linting, tests), document commands in `README.md` and `AGENTS.md`.

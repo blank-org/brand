@@ -367,6 +367,7 @@ body.preview-mode .font-card-actions .select-custom,
 body.preview-mode .font-source-column,
 body.preview-mode .font-source-toggles,
 body.preview-mode .font-card-meta .font-family-input,
+body.preview-mode .font-sample-actions,
 body.preview-mode .icon-comparison-header,
 body.preview-mode .icon-control-cell,
 body.preview-mode .icon-row-actions,
@@ -1404,6 +1405,10 @@ table[aria-label="Brand colours table"] tbody tr.is-colour-row-drag-target td {
 	.icon-row-drag-handle,
 	.icon-row-drag-handle span,
 	.icon-row-drag-handle::after,
+	.font-sample,
+	.font-sample-drag-handle,
+	.font-sample-drag-handle span,
+	.font-sample-drag-handle::after,
 	table[aria-label="Brand colours table"] tbody tr,
 	table[aria-label="Brand colours table"] tbody tr td,
 	.colour-row-drag-handle,
@@ -1446,10 +1451,72 @@ footer.site-footer {
 	max-width: 1000px;
 	margin-left: auto;
 	margin-right: auto;
+	display: flex;
+	flex-direction: column;
+	gap: 30px;
+}
+
+.font-sample-category {
+	position: relative;
+	box-sizing: border-box;
+	margin-top: 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 0;
+}
+
+.font-category-label {
+	position: absolute;
+	right: 0;
+	top: -27px;
+	box-sizing: border-box;
+	max-width: min(18rem, 100%);
+	height: 24px;
+	padding: 0 2px;
+	border: 0;
+	border-bottom: 1px solid transparent;
+	background: transparent;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--muted-text);
+	text-align: right;
+	outline: none;
+	transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.font-category-label:hover,
+.font-category-label:focus {
+	border-bottom-color: var(--accent-primary);
+	color: var(--accent-primary);
 }
 
 .font-sample {
-	margin-bottom: 24px;
+	position: relative;
+	transition: opacity 0.18s ease, transform 0.18s ease;
+	will-change: opacity, transform;
+}
+
+.font-sample.has-open-select {
+	z-index: 20;
+}
+
+.font-sample.is-font-dragging {
+	opacity: 0.45;
+	transform: scale(0.995);
+}
+
+.font-sample.is-font-drag-target::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: -6px;
+	height: 3px;
+	border-radius: 999px;
+	background: var(--accent-primary);
+	z-index: 1;
 }
 
 .font-card {
@@ -1516,6 +1583,10 @@ footer.site-footer {
 	min-width: 120px;
 }
 
+.font-controls .select-custom.is-open {
+	z-index: 1000;
+}
+
 .font-controls .select-selected {
 	padding: 6px 12px;
 	border-radius: 6px;
@@ -1531,6 +1602,7 @@ footer.site-footer {
 	background: var(--control-bg);
 	border: 1px solid var(--control-border);
 	color: var(--control-text);
+	z-index: 1001;
 }
 
 .color-picker-slot {
@@ -1579,6 +1651,7 @@ footer.site-footer {
 	line-height: 1.35;
 	padding: 12px 0;
 	border-radius: 6px;
+	color: var(--font-sample-color);
 }
 
 .font-sample-text:hover {
@@ -1629,6 +1702,66 @@ footer.site-footer {
 	opacity: 0.45;
 	pointer-events: none;
 }
+
+.font-sample-actions {
+	position: absolute;
+	top: 12px;
+	right: 12px;
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	pointer-events: none;
+}
+
+.font-sample-drag-handle {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-direction: column;
+	gap: 3px;
+	width: 30px;
+	height: 30px;
+	border: 0;
+	border-radius: 6px;
+	background: transparent;
+	color: var(--muted-text);
+	cursor: grab;
+	opacity: 0;
+	transform: scale(0.92);
+	transition: background 0.18s ease, color 0.18s ease, opacity 0.18s ease, transform 0.18s ease;
+	pointer-events: auto;
+}
+
+.font-sample-drag-handle span,
+.font-sample-drag-handle::after {
+	display: block;
+	width: 16px;
+	height: 2px;
+	border-radius: 999px;
+	background: currentColor;
+	content: "";
+	transition: width 0.18s ease, opacity 0.18s ease;
+}
+
+.font-sample:hover .font-sample-drag-handle,
+.font-sample-drag-handle:focus-visible,
+.font-sample.is-font-dragging .font-sample-drag-handle {
+	opacity: 1;
+	transform: scale(1);
+}
+
+.font-sample-drag-handle:hover,
+.font-sample-drag-handle:focus-visible {
+	background: var(--preview-hover-bg);
+	color: var(--body-text);
+	outline: none;
+}
+
+.font-sample-drag-handle:active {
+	cursor: grabbing;
+}
+
 .font-source-column {
 	display: flex;
 	align-items: center;

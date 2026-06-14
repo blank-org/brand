@@ -31,13 +31,15 @@
 - Allows logo cards to be reordered with drag/drop or left/right controls.
 
 ## Typography Samples
-- Renders font sample sections from each brand's `fonts` array.
+- Renders font sample sections from each brand's `fonts` array, including optional grouped font sections.
+- Shows each font group label outside the group at the top-right and allows it to be edited inline.
 - Displays editable font family names and applies changes to the sample preview.
 - Saves edited font family, sample text, and colour choices into exported brand data.
 - Supports font weight selection when weights are provided.
 - Supports sample text editing for live preview.
 - Provides colour selection from the brand palette and a native colour picker for custom values.
 - Allows Google Font loading for a named font family and tracks loading, synced, and idle states.
+- Allows font samples to be dragged into a new order within the same font group.
 
 ## Icon Comparison
 - Supports optional icon comparison data through `icons`, `iconComparison`, or `iconComparisons`.

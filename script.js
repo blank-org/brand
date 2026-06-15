@@ -431,8 +431,8 @@
 
 		function clearColourRowDragState() {
 			if (tbody) {
-				tbody.querySelectorAll('.is-colour-row-dragging, .is-colour-row-drag-target').forEach(element => {
-					element.classList.remove('is-colour-row-dragging', 'is-colour-row-drag-target');
+				tbody.querySelectorAll('.is-colour-row-dragging, .is-colour-row-drag-target, .is-row-drop-after').forEach(element => {
+					element.classList.remove('is-colour-row-dragging', 'is-colour-row-drag-target', 'is-row-drop-after');
 				});
 			}
 			draggedColourRow = null;
@@ -496,10 +496,10 @@
 			if (!Array.isArray(colours)) return;
 			const startIndex = Number(fromIndex);
 			const targetIndex = Number(toIndex);
-			if (!Number.isInteger(startIndex) || !Number.isInteger(targetIndex) || isIneffectiveColourDrop(startIndex, targetIndex)) return;
+			if (!Number.isInteger(startIndex) || !Number.isInteger(targetIndex) || startIndex === targetIndex) return;
 			if (startIndex < 0 || startIndex >= colours.length || targetIndex < 0 || targetIndex >= colours.length) return;
 			const moved = colours.splice(startIndex, 1)[0];
-			const insertIndex = Math.max(0, Math.min(startIndex < targetIndex ? targetIndex - 1 : targetIndex, colours.length));
+			const insertIndex = Math.max(0, Math.min(targetIndex, colours.length));
 			colours.splice(insertIndex, 0, moved);
 			colours.forEach((colour, index) => {
 				if (colour) {
@@ -511,7 +511,7 @@
 		}
 
 		function isIneffectiveColourDrop(fromIndex, toIndex) {
-			return fromIndex === toIndex || fromIndex + 1 === toIndex;
+			return fromIndex === toIndex;
 		}
 
 		function getColourRowDragPayload(e) {
@@ -551,7 +551,7 @@
 				clearDragLeaveTimer();
 				const payload = draggedColourRow;
 				if (!payload || isIneffectiveColourDrop(payload.index, index)) {
-					row.classList.remove('is-colour-row-drag-target');
+					row.classList.remove('is-colour-row-drag-target', 'is-row-drop-after');
 					return;
 				}
 				e.preventDefault();
@@ -559,6 +559,7 @@
 					e.dataTransfer.dropEffect = 'move';
 				}
 				row.classList.add('is-colour-row-drag-target');
+				row.classList.toggle('is-row-drop-after', payload.index < index);
 			});
 			row.addEventListener('dragleave', (e) => {
 				if (e.relatedTarget && row.contains(e.relatedTarget)) return;
@@ -569,7 +570,7 @@
 					dragLeaveTimer = null;
 					const hoverElement = document.elementFromPoint(x, y);
 					if (draggedColourRow && hoverElement && row.contains(hoverElement)) return;
-					row.classList.remove('is-colour-row-drag-target');
+					row.classList.remove('is-colour-row-drag-target', 'is-row-drop-after');
 				}, 40);
 			});
 			row.addEventListener('drop', (e) => {
@@ -768,8 +769,8 @@
 
 		function clearLogoFileDragState() {
 			if (logoList) {
-				logoList.querySelectorAll('.is-logo-dragging, .is-logo-drag-target').forEach(element => {
-					element.classList.remove('is-logo-dragging', 'is-logo-drag-target');
+				logoList.querySelectorAll('.is-logo-dragging, .is-logo-drag-target, .is-logo-drop-after').forEach(element => {
+					element.classList.remove('is-logo-dragging', 'is-logo-drag-target', 'is-logo-drop-after');
 					if (element.classList.contains('logo-file')) {
 						element.setAttribute('aria-grabbed', 'false');
 					}
@@ -821,7 +822,7 @@
 			card.addEventListener('dragover', (e) => {
 				const payload = draggedLogoFile;
 				if (!payload || payload.index === index) {
-					card.classList.remove('is-logo-drag-target');
+					card.classList.remove('is-logo-drag-target', 'is-logo-drop-after');
 					return;
 				}
 				e.preventDefault();
@@ -829,9 +830,10 @@
 					e.dataTransfer.dropEffect = 'move';
 				}
 				card.classList.add('is-logo-drag-target');
+				card.classList.toggle('is-logo-drop-after', payload.index < index);
 			});
 			card.addEventListener('dragleave', () => {
-				card.classList.remove('is-logo-drag-target');
+				card.classList.remove('is-logo-drag-target', 'is-logo-drop-after');
 			});
 			card.addEventListener('drop', (e) => {
 				const payload = getDraggedLogoPayload(e);
@@ -1200,9 +1202,9 @@
 				normalizeIconName(row.label || row.name)
 			) === fromRowKey);
 			const targetIndex = rows.indexOf(targetRowData.sourceRow);
-			if (fromIndex < 0 || targetIndex < 0 || isIneffectiveIconRowDrop(fromIndex, targetIndex)) return;
+			if (fromIndex < 0 || targetIndex < 0 || fromIndex === targetIndex) return;
 			const moved = rows.splice(fromIndex, 1)[0];
-			const insertIndex = fromIndex < targetIndex ? targetIndex - 1 : targetIndex;
+			const insertIndex = Math.max(0, Math.min(targetIndex, rows.length));
 			rows.splice(insertIndex, 0, moved);
 			pendingIconRowPositions = getIconRowPositions();
 			renderActiveBrand();
@@ -1217,7 +1219,7 @@
 		}
 
 		function isIneffectiveIconRowDrop(fromIndex, toIndex) {
-			return fromIndex === toIndex || fromIndex + 1 === toIndex;
+			return fromIndex === toIndex;
 		}
 
 		function getIconGroupIndex(category, sourceRows) {
@@ -1373,8 +1375,8 @@
 
 		function clearIconRowDragState() {
 			if (iconComparisonList) {
-				iconComparisonList.querySelectorAll('.is-row-dragging, .is-row-drag-target').forEach(element => {
-					element.classList.remove('is-row-dragging', 'is-row-drag-target');
+				iconComparisonList.querySelectorAll('.is-row-dragging, .is-row-drag-target, .is-row-drop-after').forEach(element => {
+					element.classList.remove('is-row-dragging', 'is-row-drag-target', 'is-row-drop-after');
 				});
 			}
 			draggedIconRow = null;
@@ -1442,7 +1444,7 @@
 				const fromIndex = payload ? getIconRowIndex(payload.rowKey, rowData) : -1;
 				const targetIndex = rowData.sourceRows ? rowData.sourceRows.indexOf(rowData.sourceRow) : -1;
 				if (!payload || payload.rowKey === rowKey || payload.category !== rowData.category || isIneffectiveIconRowDrop(fromIndex, targetIndex)) {
-					row.classList.remove('is-row-drag-target');
+					row.classList.remove('is-row-drag-target', 'is-row-drop-after');
 					return;
 				}
 				e.preventDefault();
@@ -1450,6 +1452,7 @@
 					e.dataTransfer.dropEffect = 'move';
 				}
 				row.classList.add('is-row-drag-target');
+				row.classList.toggle('is-row-drop-after', fromIndex < targetIndex);
 			});
 			row.addEventListener('dragleave', (e) => {
 				if (e.relatedTarget && row.contains(e.relatedTarget)) return;
@@ -1460,7 +1463,7 @@
 					dragLeaveTimer = null;
 					const hoverElement = document.elementFromPoint(x, y);
 					if (draggedIconRow && hoverElement && row.contains(hoverElement)) return;
-					row.classList.remove('is-row-drag-target');
+					row.classList.remove('is-row-drag-target', 'is-row-drop-after');
 				}, 40);
 			});
 			row.addEventListener('drop', (e) => {
@@ -2027,8 +2030,8 @@
 		function clearFontSampleDragState() {
 			const fontSamples = document.getElementById('font-samples');
 			if (fontSamples) {
-				fontSamples.querySelectorAll('.is-font-dragging, .is-font-drag-target').forEach(element => {
-					element.classList.remove('is-font-dragging', 'is-font-drag-target');
+				fontSamples.querySelectorAll('.is-font-dragging, .is-font-drag-target, .is-row-drop-after').forEach(element => {
+					element.classList.remove('is-font-dragging', 'is-font-drag-target', 'is-row-drop-after');
 				});
 			}
 			draggedFontSample = null;
@@ -2046,7 +2049,7 @@
 		}
 
 		function isIneffectiveFontDrop(fromIndex, toIndex) {
-			return fromIndex === toIndex || fromIndex + 1 === toIndex;
+			return fromIndex === toIndex;
 		}
 
 		function getDraggedFontPayload(e) {
@@ -2094,9 +2097,9 @@
 			const rows = targetRowData.sourceRows;
 			const targetIndex = rows.indexOf(targetRowData.font);
 			const fromIndex = getFontSampleIndex(fromFontKey, targetRowData);
-			if (fromIndex < 0 || targetIndex < 0 || isIneffectiveFontDrop(fromIndex, targetIndex)) return;
+			if (fromIndex < 0 || targetIndex < 0 || fromIndex === targetIndex) return;
 			const moved = rows.splice(fromIndex, 1)[0];
-			const insertIndex = Math.max(0, Math.min(fromIndex < targetIndex ? targetIndex - 1 : targetIndex, rows.length));
+			const insertIndex = Math.max(0, Math.min(targetIndex, rows.length));
 			rows.splice(insertIndex, 0, moved);
 			pendingFontSamplePositions = getFontSamplePositions();
 			renderActiveBrand();
@@ -2135,7 +2138,7 @@
 				const fromIndex = payload ? getFontSampleIndex(payload.fontKey, rowData) : -1;
 				const targetIndex = rowData.sourceRows ? rowData.sourceRows.indexOf(rowData.font) : -1;
 				if (!payload || payload.category !== rowData.category || isIneffectiveFontDrop(fromIndex, targetIndex)) {
-					sample.classList.remove('is-font-drag-target');
+					sample.classList.remove('is-font-drag-target', 'is-row-drop-after');
 					return;
 				}
 				e.preventDefault();
@@ -2143,6 +2146,7 @@
 					e.dataTransfer.dropEffect = 'move';
 				}
 				sample.classList.add('is-font-drag-target');
+				sample.classList.toggle('is-row-drop-after', fromIndex < targetIndex);
 			});
 			sample.addEventListener('dragleave', (e) => {
 				if (e.relatedTarget && sample.contains(e.relatedTarget)) return;
@@ -2153,7 +2157,7 @@
 					dragLeaveTimer = null;
 					const hoverElement = document.elementFromPoint(x, y);
 					if (draggedFontSample && hoverElement && sample.contains(hoverElement)) return;
-					sample.classList.remove('is-font-drag-target');
+					sample.classList.remove('is-font-drag-target', 'is-row-drop-after');
 				}, 40);
 			});
 			sample.addEventListener('drop', (e) => {

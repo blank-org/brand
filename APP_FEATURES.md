@@ -9,11 +9,13 @@
 
 ## Colour Reference
 - Displays brand colours in a table with colour code, visual swatch, and remark fields.
+- Supports flat colour arrays and grouped colour sections with `category` plus `rows`, `items`, or `colours`.
+- Shows editable colour group titles and lets backed grouped sections be reordered.
 - Supports optional serial numbers through `showSerialNumbers`.
 - Copies a colour hex value when a colour row control is clicked.
 - Supports keyboard copy interaction with Enter or Space.
 - Shows temporary copy success or failure feedback in the colour code cell.
-- Allows colour rows to be dragged into a new order with a hover-only row handle and updated serial numbers.
+- Allows colour rows to be dragged into a new order within their colour group with a hover-only row handle and updated serial numbers.
 
 ## Theme Support
 - Supports optional brand themes through a `themes` array in brand data.

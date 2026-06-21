@@ -21,6 +21,9 @@ Because everything is static, you can double-click `brand.html` to open it in a 
 3. (Optional) Adjust `styles.css` or add assets under `resource/` if the new brand requires them.
 4. Reload `brand.html` and confirm colours, copy-to-clipboard behaviour, font controls, and icon comparison interactions.
 
+## Colour Data
+Colour palettes may be flat, e.g. `colours: [{ id, name, hex, usage, remark }]`, or grouped like `colours: [{ category: "Core", rows: [{ id, name, hex, usage, remark }] }]`. Grouped colour sections also accept `items` or nested `colours` instead of `rows`; group titles can be edited and grouped sections can be reordered in the UI.
+
 ## Icon Comparison Data
 Icon comparison rows are optional. Add an `icons` array to a brand with parent category objects, e.g. `{ category: "Sidebar", rows: [...] }`. Each row should include `label`, `currentIndex`, and `variants`. Each variant uses a Lucide component name string, e.g. `{ index: 1, icon: "LayoutDashboard", name: "LayoutDashboard" }`. The static page converts the name for the browser Lucide runtime; TSX surfaces can resolve the same string against `lucide-react`.
 

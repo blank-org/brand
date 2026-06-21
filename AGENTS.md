@@ -26,6 +26,7 @@
 
 ## Testing Guidelines
 - Manual verification is the norm: confirm brand selection, colour copy-to-clipboard, and font controls across browsers.
+- Local Chrome executables found for headless smoke checks: `C:\Program Files\Google\Chrome\Application\chrome.exe` and `C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe`.
 - When adding automated tests, mirror the manual scenarios and store specs under `tests/`.
 - Name future test files `<feature>.spec.js` and ensure they run via a documented npm script.
 

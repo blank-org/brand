@@ -40,6 +40,7 @@
 		let draggedFontSample = null;
 		let draggedFontGroup = null;
 		let draggedColourRow = null;
+		let draggedColourGroup = null;
 		let draggedLogoFile = null;
 		let pendingColourRowPositions = null;
 		let pendingIconRowPositions = null;
@@ -272,7 +273,7 @@
 				? theme.colours
 				: (Array.isArray(brand.colours) ? brand.colours : []);
 			const clone = Object.assign({}, brand);
-			clone.colours = sourceColours.map(colour => Object.assign({}, colour));
+			clone.colours = sourceColours;
 			clone.activeTheme = theme.id;
 			clone.activeThemeLabel = theme.label || theme.name || theme.id;
 			return clone;
@@ -429,13 +430,185 @@
 			return activeBrandData.logos;
 		}
 
+		function hasColourFields(colour) {
+			return !!colour && (colour.hex !== undefined || colour.name !== undefined || colour.usage !== undefined || colour.remark !== undefined);
+		}
+
+		function getColourGroups(brand) {
+			const source = brand && brand.colours;
+			if (!Array.isArray(source)) return [];
+			const defaultCategory = normalizeIconName(brand.coloursLabel || brand.colourCategory || brand.colourGroup || 'Colours');
+			const groups = [];
+			const standaloneRows = [];
+
+			function addColourRow(acc, colour, sourceRows, parentCategory, sourceCategoryItem, sourceRootRows) {
+				if (!hasColourFields(colour)) return;
+				const category = normalizeIconName(parentCategory || colour.category || colour.location || colour.group || defaultCategory);
+				acc.push({ category, colour, sourceRows, sourceCategoryItem, sourceRootRows });
+			}
+
+			source.forEach(item => {
+				if (!item) return;
+				const parentCategory = normalizeIconName(item.category || item.location || item.group || item.label);
+				const children = item.rows || item.items || item.colours;
+				if (Array.isArray(children)) {
+					const rows = [];
+					children.forEach(child => addColourRow(rows, child, children, parentCategory || defaultCategory, item, source));
+					if (rows.length) {
+						groups.push({ category: parentCategory || defaultCategory, rows, sourceCategoryItem: item, sourceRootRows: source });
+					}
+					return;
+				}
+				const itemCategory = normalizeIconName(item.category || item.location || item.group || defaultCategory);
+				addColourRow(standaloneRows, item, source, itemCategory, null, source);
+			});
+
+			if (standaloneRows.length) {
+				const categories = [];
+				const byCategory = {};
+				standaloneRows.forEach(row => {
+					if (!byCategory[row.category]) {
+						byCategory[row.category] = [];
+						categories.push(row.category);
+					}
+					byCategory[row.category].push(row);
+				});
+				categories.reverse().forEach(category => {
+					groups.unshift({ category, rows: byCategory[category], sourceCategoryItem: null, sourceRootRows: source });
+				});
+			}
+			return groups;
+		}
+
+		function getFlatBrandColours(brand) {
+			return getColourGroups(brand).reduce((acc, group) => {
+				group.rows.forEach(row => acc.push(row.colour));
+				return acc;
+			}, []);
+		}
+
 		function clearColourRowDragState() {
 			if (tbody) {
-				tbody.querySelectorAll('.is-colour-row-dragging, .is-colour-row-drag-target, .is-row-drop-after').forEach(element => {
-					element.classList.remove('is-colour-row-dragging', 'is-colour-row-drag-target', 'is-row-drop-after');
+				tbody.querySelectorAll('.is-colour-row-dragging, .is-colour-row-drag-target, .is-row-drop-after, .is-group-dragging, .is-group-drag-target, .is-group-drop-after').forEach(element => {
+					element.classList.remove('is-colour-row-dragging', 'is-colour-row-drag-target', 'is-row-drop-after', 'is-group-dragging', 'is-group-drag-target', 'is-group-drop-after');
 				});
 			}
 			draggedColourRow = null;
+			draggedColourGroup = null;
+		}
+
+		function renameColourCategory(group, value) {
+			if (!group) return;
+			const name = normalizeIconName(value) || 'Colours';
+			if (name === group.category) return;
+
+			group.rows.forEach(row => {
+				if (!row) return;
+				if (row.sourceCategoryItem) {
+					const source = row.sourceCategoryItem;
+					if (source.category !== undefined || !source.location && !source.group && !source.label) {
+						source.category = name;
+					} else if (source.location !== undefined) {
+						source.location = name;
+					} else if (source.group !== undefined) {
+						source.group = name;
+					} else {
+						source.label = name;
+					}
+				} else if (row.colour) {
+					if (row.colour.category !== undefined || row.colour.location === undefined && row.colour.group === undefined) {
+						row.colour.category = name;
+					} else if (row.colour.location !== undefined) {
+						row.colour.location = name;
+					} else {
+						row.colour.group = name;
+					}
+				}
+			});
+
+			renderActiveBrand();
+		}
+
+		function getColourGroupIndex(category, sourceRows) {
+			if (!category || !Array.isArray(sourceRows)) return -1;
+			return sourceRows.findIndex(item => {
+				if (!item) return false;
+				const children = item.rows || item.items || item.colours;
+				if (!Array.isArray(children)) return false;
+				const itemCategory = normalizeIconName(item.category || item.location || item.group || item.label || item.name || 'Colours');
+				return itemCategory === category;
+			});
+		}
+
+		function canMoveColourGroup(fromCategory, targetGroup) {
+			if (!fromCategory || !targetGroup || fromCategory === targetGroup.category || !Array.isArray(targetGroup.sourceRootRows)) return false;
+			return getColourGroupIndex(fromCategory, targetGroup.sourceRootRows) >= 0 && getColourGroupIndex(targetGroup.category, targetGroup.sourceRootRows) >= 0;
+		}
+
+		function moveColourGroup(fromCategory, targetGroup) {
+			if (!canMoveColourGroup(fromCategory, targetGroup)) return;
+			const source = targetGroup.sourceRootRows;
+			const fromIndex = getColourGroupIndex(fromCategory, source);
+			const targetIndex = getColourGroupIndex(targetGroup.category, source);
+			if (fromIndex < 0 || targetIndex < 0 || fromIndex === targetIndex) return;
+			const moved = source.splice(fromIndex, 1)[0];
+			const insertIndex = Math.max(0, Math.min(targetIndex, source.length));
+			source.splice(insertIndex, 0, moved);
+			renderActiveBrand();
+		}
+
+		function getDraggedColourGroupPayload(e) {
+			if (!e || !e.dataTransfer) return draggedColourGroup;
+			const text = e.dataTransfer.getData('application/x-brand-colour-group');
+			if (!text) return draggedColourGroup;
+			try {
+				return JSON.parse(text);
+			} catch (err) {
+				return draggedColourGroup;
+			}
+		}
+
+		function bindColourGroupDrag(row, handle, group) {
+			if (!row || !handle || !group) return;
+			handle.addEventListener('dragstart', (e) => {
+				draggedColourGroup = {
+					category: group.category
+				};
+				row.classList.add('is-group-dragging');
+				if (e.dataTransfer) {
+					const payload = JSON.stringify(draggedColourGroup);
+					e.dataTransfer.effectAllowed = 'move';
+					e.dataTransfer.setData('application/x-brand-colour-group', payload);
+					e.dataTransfer.setData('text/plain', payload);
+				}
+			});
+			handle.addEventListener('dragend', clearColourRowDragState);
+			row.addEventListener('dragover', (e) => {
+				const payload = draggedColourGroup;
+				if (!payload || !canMoveColourGroup(payload.category, group)) {
+					row.classList.remove('is-group-drag-target', 'is-group-drop-after');
+					return;
+				}
+				e.preventDefault();
+				if (e.dataTransfer) {
+					e.dataTransfer.dropEffect = 'move';
+				}
+				const fromIndex = getColourGroupIndex(payload.category, group.sourceRootRows);
+				const targetIndex = getColourGroupIndex(group.category, group.sourceRootRows);
+				row.classList.add('is-group-drag-target');
+				row.classList.toggle('is-group-drop-after', fromIndex < targetIndex);
+			});
+			row.addEventListener('dragleave', (e) => {
+				if (e.relatedTarget && row.contains(e.relatedTarget)) return;
+				row.classList.remove('is-group-drag-target', 'is-group-drop-after');
+			});
+			row.addEventListener('drop', (e) => {
+				const payload = getDraggedColourGroupPayload(e);
+				if (!payload || !canMoveColourGroup(payload.category, group)) return;
+				e.preventDefault();
+				clearColourRowDragState();
+				moveColourGroup(payload.category, group);
+			});
 		}
 
 		function getColourKeyParts(colour) {
@@ -452,9 +625,10 @@
 			return `${getColourKeyParts(colour)}::${occurrence}`;
 		}
 
-		function getColourRenderKeys(colours) {
+		function getColourRenderKeys(rows) {
 			const counts = {};
-			return colours.map(colour => {
+			return rows.map(row => {
+				const colour = row && row.colour ? row.colour : row;
 				const key = getColourKeyParts(colour);
 				counts[key] = (counts[key] || 0) + 1;
 				return getColourRenderKey(colour, counts[key]);
@@ -492,18 +666,25 @@
 		}
 
 		function moveColourRow(fromIndex, toIndex) {
-			const colours = getActiveColourSource();
-			if (!Array.isArray(colours)) return;
+			const groups = getColourGroups({ colours: getActiveColourSource() || [] });
+			const rows = groups.reduce((acc, group) => acc.concat(group.rows), []);
 			const startIndex = Number(fromIndex);
 			const targetIndex = Number(toIndex);
 			if (!Number.isInteger(startIndex) || !Number.isInteger(targetIndex) || startIndex === targetIndex) return;
-			if (startIndex < 0 || startIndex >= colours.length || targetIndex < 0 || targetIndex >= colours.length) return;
-			const moved = colours.splice(startIndex, 1)[0];
-			const insertIndex = Math.max(0, Math.min(targetIndex, colours.length));
+			if (startIndex < 0 || startIndex >= rows.length || targetIndex < 0 || targetIndex >= rows.length) return;
+			const fromRow = rows[startIndex];
+			const targetRow = rows[targetIndex];
+			if (!fromRow || !targetRow || fromRow.category !== targetRow.category || !Array.isArray(targetRow.sourceRows)) return;
+			const colours = targetRow.sourceRows;
+			const sourceIndex = colours.indexOf(fromRow.colour);
+			const targetSourceIndex = colours.indexOf(targetRow.colour);
+			if (sourceIndex < 0 || targetSourceIndex < 0 || sourceIndex === targetSourceIndex) return;
+			const moved = colours.splice(sourceIndex, 1)[0];
+			const insertIndex = Math.max(0, Math.min(targetSourceIndex, colours.length));
 			colours.splice(insertIndex, 0, moved);
-			colours.forEach((colour, index) => {
-				if (colour) {
-					colour.id = index + 1;
+			rows.forEach((row, index) => {
+				if (row && row.colour) {
+					row.colour.id = index + 1;
 				}
 			});
 			pendingColourRowPositions = getColourRowPositions();
@@ -538,7 +719,7 @@
 			}
 
 			handle.addEventListener('dragstart', (e) => {
-				draggedColourRow = { index };
+				draggedColourRow = { index, category: row.dataset.colourCategory };
 				row.classList.add('is-colour-row-dragging');
 				if (e.dataTransfer) {
 					e.dataTransfer.effectAllowed = 'move';
@@ -550,7 +731,7 @@
 			row.addEventListener('dragover', (e) => {
 				clearDragLeaveTimer();
 				const payload = draggedColourRow;
-				if (!payload || isIneffectiveColourDrop(payload.index, index)) {
+				if (!payload || payload.category !== row.dataset.colourCategory || isIneffectiveColourDrop(payload.index, index)) {
 					row.classList.remove('is-colour-row-drag-target', 'is-row-drop-after');
 					return;
 				}
@@ -575,7 +756,7 @@
 			});
 			row.addEventListener('drop', (e) => {
 				const payload = getColourRowDragPayload(e);
-				if (!payload || isIneffectiveColourDrop(payload.index, index)) return;
+				if (!payload || payload.category !== row.dataset.colourCategory || isIneffectiveColourDrop(payload.index, index)) return;
 				e.preventDefault();
 				moveColourRow(payload.index, index);
 				clearColourRowDragState();
@@ -626,13 +807,16 @@
 		function renderBrand(brand) {
 			// Do not change the heading here; it should remain the global company name.
 			// heading is intentionally left untouched so it's unaffected by selector changes.
-			const data = brand.colours || [];
+			const colourGroups = getColourGroups(brand);
+			const colourRows = colourGroups.reduce((acc, group) => acc.concat(group.rows), []);
+			const hasGroupedColours = colourGroups.length > 1 || (colourGroups[0] && colourGroups[0].category !== 'Colours');
 			if (!tbody) return;
 			const table = tbody.closest('table');
 			const showSerial = brand.showSerialNumbers === true;
 			renderLogoFiles(brand);
 			if (table) {
 				table.classList.toggle('hide-serial', !showSerial);
+				table.classList.toggle('has-colour-groups', hasGroupedColours);
 			}
 			tbody.innerHTML = '';
 			if (typeof window.brandColourRowTemplate !== 'function') {
@@ -640,15 +824,59 @@
 				return;
 			}
 
-			const colourRenderKeys = getColourRenderKeys(data);
+			const colourRenderKeys = getColourRenderKeys(colourRows);
+			let rowIndex = 0;
 
-			data.forEach((item, index) => {
-				const tr = document.createElement('tr');
-				tr.dataset.colourIndex = String(index);
-				tr.dataset.colourKey = colourRenderKeys[index];
-				tr.innerHTML = window.brandColourRowTemplate(item, { showSerial, serial: index + 1 });
-				bindColourRowDrag(tr, index);
-				tbody.appendChild(tr);
+			colourGroups.forEach(group => {
+				if (hasGroupedColours) {
+					const groupRow = document.createElement('tr');
+					groupRow.className = 'colour-group-row';
+					const groupCell = document.createElement('td');
+					groupCell.colSpan = showSerial ? 5 : 4;
+					const titleBar = document.createElement('div');
+					titleBar.className = 'group-title-bar colour-group-title-bar';
+					const label = document.createElement('input');
+					label.className = 'colour-category-label';
+					label.type = 'text';
+					label.spellcheck = false;
+					label.value = group.category;
+					label.setAttribute('aria-label', `Edit ${group.category} colour group label`);
+					let categoryCommitted = false;
+					const commitCategoryLabel = () => {
+						if (categoryCommitted) return;
+						categoryCommitted = true;
+						renameColourCategory(group, label.value);
+					};
+					label.addEventListener('blur', commitCategoryLabel);
+					label.addEventListener('keydown', (e) => {
+						if (e.key === 'Enter') {
+							e.preventDefault();
+							commitCategoryLabel();
+						} else if (e.key === 'Escape') {
+							e.preventDefault();
+							label.value = group.category;
+							label.blur();
+						}
+					});
+					const dragHandle = createGroupDragHandle(group.category);
+					titleBar.appendChild(label);
+					titleBar.appendChild(dragHandle);
+					groupCell.appendChild(titleBar);
+					groupRow.appendChild(groupCell);
+					tbody.appendChild(groupRow);
+					bindColourGroupDrag(groupRow, dragHandle, group);
+				}
+
+				group.rows.forEach(rowData => {
+					const tr = document.createElement('tr');
+					tr.dataset.colourIndex = String(rowIndex);
+					tr.dataset.colourCategory = rowData.category;
+					tr.dataset.colourKey = colourRenderKeys[rowIndex];
+					tr.innerHTML = window.brandColourRowTemplate(rowData.colour, { showSerial, serial: rowIndex + 1 });
+					bindColourRowDrag(tr, rowIndex);
+					tbody.appendChild(tr);
+					rowIndex += 1;
+				});
 			});
 
 			if (pendingColourRowPositions) {
@@ -2284,7 +2512,7 @@
 				return;
 			}
 
-			const brandColours = Array.isArray(brand.colours) ? brand.colours : [];
+			const brandColours = getFlatBrandColours(brand);
 			let fontSerial = 0;
 			const fontKeyCounts = {};
 

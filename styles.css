@@ -1396,6 +1396,78 @@ table[aria-label="Brand colours table"] tbody tr td {
 	transition: none;
 }
 
+table[aria-label="Brand colours table"] tbody tr.colour-group-row {
+	position: relative;
+	background: var(--table-header-end);
+}
+
+table[aria-label="Brand colours table"] tbody tr.colour-group-row td {
+	padding: 14px 24px 8px;
+	border-bottom: 0;
+}
+
+.colour-group-title-bar {
+	position: static;
+	height: 26px;
+	max-width: min(24rem, 100%);
+}
+
+.colour-category-label {
+	position: relative;
+	box-sizing: border-box;
+	width: min(18rem, calc(100vw - 80px));
+	max-width: 100%;
+	height: 24px;
+	padding: 0 2px;
+	border: 0;
+	border-bottom: 1px solid transparent;
+	background: transparent;
+	color: var(--muted-text);
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	outline: none;
+	transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.colour-category-label:hover,
+.colour-category-label:focus {
+	border-bottom-color: var(--accent-primary);
+	color: var(--accent-primary);
+}
+
+table[aria-label="Brand colours table"] tbody tr.colour-group-row.is-group-dragging {
+	opacity: 0.5;
+}
+
+table[aria-label="Brand colours table"] tbody tr.colour-group-row.is-group-drag-target::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 0;
+	height: 3px;
+	border-radius: 999px;
+	background: var(--accent-primary);
+	z-index: 2;
+	pointer-events: none;
+}
+
+table[aria-label="Brand colours table"] tbody tr.colour-group-row.is-group-drag-target.is-group-drop-after::before {
+	top: auto;
+	bottom: 0;
+}
+
+.colour-group-label {
+	display: inline-flex;
+	align-items: center;
+	min-height: 24px;
+	color: var(--muted-text);
+	font-size: 13px;
+	font-weight: 600;
+}
+
 table.hide-serial th.serial-column,
 table.hide-serial td.serial {
 	display: none;

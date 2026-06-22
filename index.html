@@ -31,10 +31,38 @@
 					</button>
 				</div>
 			</div>
+			<nav class="section-rail" aria-label="Brand sections">
+				<a class="section-rail-link" href="#logo-files" data-section-target="logo-files">
+					<i class="material-icons" aria-hidden="true">image</i>
+					<span>Logos</span>
+				</a>
+				<a class="section-rail-link" href="#colour-palette" data-section-target="colour-palette">
+					<i class="material-icons" aria-hidden="true">palette</i>
+					<span>Color palette</span>
+				</a>
+				<a class="section-rail-link" href="#font-samples" data-section-target="font-samples">
+					<i class="material-icons" aria-hidden="true">text_fields</i>
+					<span>Typography</span>
+				</a>
+				<a class="section-rail-link" href="#icon-comparison" data-section-target="icon-comparison">
+					<i class="material-icons" aria-hidden="true">widgets</i>
+					<span>Icons</span>
+				</a>
+			</nav>
 			<section id="logo-files" class="logo-files is-hidden sections" aria-labelledby="logo-files-heading">
+				<div class="section-side-title" aria-hidden="true" title="Logos">
+					<i class="material-icons">image</i>
+					<span>Logos</span>
+				</div>
 				<div class="logo-file-list" id="logo-files-list" role="list"></div>
 			</section>
-			<table aria-label="Brand colours table" class="sections">
+			<div id="colour-palette-title" class="section-title-anchor sections" aria-hidden="true" hidden>
+				<div class="section-side-title" title="Color palette">
+					<i class="material-icons">palette</i>
+					<span>Color palette</span>
+				</div>
+			</div>
+			<table id="colour-palette" aria-label="Brand colours table" class="sections">
 				<thead>
 					<tr>
 						<th>Colour</th>
@@ -48,8 +76,17 @@
 					<!-- rows are generated dynamically from data.json.js by script.js -->
 				</tbody>
 			</table>
-			<div id="font-samples" class="sections"></div>
+			<div id="font-samples" class="sections">
+				<div class="section-side-title" aria-hidden="true" title="Typography">
+					<i class="material-icons">text_fields</i>
+					<span>Typography</span>
+				</div>
+			</div>
 			<section id="icon-comparison" class="icon-comparison sections is-hidden" aria-label="Icon comparison">
+				<div class="section-side-title" aria-hidden="true" title="Icons">
+					<i class="material-icons">widgets</i>
+					<span>Icons</span>
+				</div>
 				<div id="icon-comparison-list" class="icon-comparison-list"></div>
 			</section>
 			<div class="footer-actions">

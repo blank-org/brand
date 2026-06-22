@@ -62,8 +62,9 @@
 - Saves selected icon variants into exported brand data.
 
 ## Preview And Controls
-- Provides a preview mode toggle that adds or removes `preview-mode` on the page body.
+- Provides a preview mode toggle that adds or removes `preview-mode` on the page body and hides editing controls including logo move buttons.
 - Provides a preview-only `#` toggle for showing or hiding colour, font, and icon indexes.
+- Shows subtle right-side section navigation and per-section title markers with icons for logos, colour palette, typography, and icons when those sections are available.
 - Uses custom-styled select controls while keeping the underlying native selects available to scripts.
 - Closes custom select menus when users click outside them.
 - Prevents accidental drag text selection on app controls while preserving text selection in editable fields.

@@ -18,6 +18,8 @@
 		const logoList = document.getElementById('logo-files-list');
 		const iconComparisonSection = document.getElementById('icon-comparison');
 		const iconComparisonList = document.getElementById('icon-comparison-list');
+		const colourPaletteTitle = document.getElementById('colour-palette-title');
+		const sectionRailLinks = Array.prototype.slice.call(document.querySelectorAll('.section-rail-link'));
 		const body = document.body;
 		const bodyThemeClasses = ['theme-light', 'theme-dark'];
 		const brandStorageKey = 'brand.activeBrand';
@@ -96,6 +98,32 @@
 		// Ensure the H3 shows the global company/brand name and is unaffected by the brand selector
 		if (heading && window.brand) heading.textContent = window.brand;
 		if (footer && window.brand) footer.textContent = `Copyright © ${new Date().getFullYear()} ${window.brand}`;
+
+		function updateSectionRailState() {
+			if (!sectionRailLinks.length) return;
+			let visibleCount = 0;
+			sectionRailLinks.forEach(link => {
+				const targetId = link.getAttribute('data-section-target');
+				const target = targetId ? document.getElementById(targetId) : null;
+				let isVisible = !!target && !target.classList.contains('is-hidden');
+				if (targetId === 'font-samples') {
+					isVisible = isVisible && !!target.querySelector('.font-sample-category');
+				}
+				if (targetId === 'colour-palette') {
+					const colourBody = target ? target.querySelector('tbody') : null;
+					isVisible = isVisible && !!colourBody && colourBody.children.length > 0;
+					if (colourPaletteTitle) {
+						colourPaletteTitle.hidden = !isVisible;
+					}
+				}
+				link.hidden = !isVisible;
+				if (isVisible) visibleCount += 1;
+			});
+			const rail = sectionRailLinks[0].parentElement;
+			if (rail) {
+				rail.hidden = visibleCount === 0;
+			}
+		}
 
 		function copyText(text) {
 			if (!text) return Promise.reject(new Error('no text'));
@@ -886,6 +914,7 @@
 
 			renderFonts(brand);
 			renderIconComparison(brand);
+			updateSectionRailState();
 		}
 
 		function renderLogoFiles(brand) {
@@ -2511,6 +2540,13 @@
 			if (fontGroups.length === 0) {
 				return;
 			}
+
+			const sectionTitle = document.createElement('div');
+			sectionTitle.className = 'section-side-title';
+			sectionTitle.setAttribute('aria-hidden', 'true');
+			sectionTitle.title = 'Typography';
+			sectionTitle.innerHTML = '<i class="material-icons">text_fields</i><span>Typography</span>';
+			fontSamples.appendChild(sectionTitle);
 
 			const brandColours = getFlatBrandColours(brand);
 			let fontSerial = 0;

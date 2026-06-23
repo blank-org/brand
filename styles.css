@@ -216,7 +216,7 @@ table.sections,
 .section-side-title {
 	position: absolute;
 	top: 0;
-	right: -172px;
+	left: calc(100% + 16px);
 	z-index: 8;
 	display: inline-flex;
 	align-items: center;
@@ -237,6 +237,7 @@ table.sections,
 	letter-spacing: 0;
 	text-align: left;
 	white-space: nowrap;
+	transform-origin: left center;
 	transition: width 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -274,7 +275,7 @@ table.sections,
 
 @media (max-width:1320px) {
 	.section-side-title {
-		right: -56px;
+		left: calc(100% + 8px);
 	}
 }
 

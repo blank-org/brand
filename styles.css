@@ -1491,7 +1491,7 @@ body.preview-mode.preview-indexes table td.serial {
 .select-custom.brand-select-menu .select-selected,
 .select-custom.theme-select-menu .select-selected {
 	border-radius: 999px;
-	padding: 10px 36px 10px 18px;
+	padding: 10px 36px;
 	font-weight: 500;
 }
 

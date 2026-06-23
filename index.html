@@ -19,13 +19,15 @@
 					<div class="brand-selector">
 						<select id="brand-select" aria-label="Select brand"></select>
 					</div>
-					<div class="theme-selector" id="theme-selector" hidden>
-						<select id="theme-select" aria-label="Select theme"></select>
+					<div class="theme-control-row">
+						<button id="index-toggle" class="icon-toggle index-toggle" type="button" aria-label="Show indexes" aria-pressed="false">#</button>
+						<div class="theme-selector" id="theme-selector" hidden>
+							<select id="theme-select" aria-label="Select theme"></select>
+						</div>
+						<div id="preview-toggle" role="button" tabindex="0" aria-pressed="false"><i class="material-icons">visibility</i></div>
 					</div>
 				</div>
 				<div class="header-actions">
-					<button id="index-toggle" class="icon-toggle index-toggle" type="button" aria-label="Show indexes" aria-pressed="false">#</button>
-					<div id="preview-toggle" role="button" tabindex="0" aria-pressed="false"><i class="material-icons">visibility</i></div>
 					<button id="theme-toggle" class="icon-toggle" type="button" aria-label="Toggle theme" hidden>
 						<i class="material-icons" aria-hidden="true">light_mode</i>
 					</button>

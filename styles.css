@@ -286,12 +286,14 @@ table.sections,
 	z-index: 20;
 	display: flex;
 	flex-direction: column;
+	align-items: flex-end;
 	gap: 8px;
 	transform: translateY(-50%);
 }
 
 .section-rail-link {
 	display: flex;
+	flex-direction: row-reverse;
 	align-items: center;
 	justify-content: flex-start;
 	gap: 8px;
@@ -339,7 +341,7 @@ table.sections,
 	font-weight: 600;
 	letter-spacing: 0;
 	opacity: 0;
-	transform: translateX(-4px);
+	transform: translateX(4px);
 	transition: opacity 0.16s ease, transform 0.16s ease;
 }
 

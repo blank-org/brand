@@ -24,14 +24,16 @@
 		const bodyThemeClasses = ['theme-light', 'theme-dark'];
 		const brandStorageKey = 'brand.activeBrand';
 		const themeStorageKey = 'brand.activeTheme';
+		const appearanceStorageKey = 'brand.activeAppearance';
 		let brandSelectMenu = null;
 		let themeSelectMenu = null;
-		let themeControlMode = 'none';
+		let appearanceControlMode = 'hidden';
 		const fontSelectMenus = [];
 		let activeBrandData = null;
 		let activeBrandId = null;
 		let activeBrandThemes = [];
 		let activeThemeId = null;
+		let activeAppearanceId = null;
 		const selectedIconIndexes = {};
 		const highlightedIconRows = {};
 		let exclusiveIconRowKey = null;
@@ -153,12 +155,13 @@
 		function applySelectedIconIndexesForExport(brand) {
 			const source = brand && (brand.icons || brand.iconComparison || brand.iconComparisons);
 			if (!Array.isArray(source)) return;
+			const scopeId = getActiveIconScopeId();
 
 			function applyRow(row, parentCategory) {
 				if (!row) return;
 				const label = normalizeIconName(row.label || row.name);
 				const category = normalizeIconName(parentCategory || row.category || row.location || row.group || 'Icons');
-				const rowKey = getIconRowKey(category, label);
+				const rowKey = getIconRowKey(category, label, scopeId);
 				if (label && selectedIconIndexes[rowKey] !== undefined) {
 					row.currentIndex = selectedIconIndexes[rowKey];
 				}
@@ -241,6 +244,26 @@
 			}
 		}
 
+		function getStoredAppearanceId() {
+			try {
+				return normalizeThemeId(window.localStorage && window.localStorage.getItem(appearanceStorageKey));
+			} catch (err) {
+				return null;
+			}
+		}
+
+		function storeAppearanceId(appearanceId) {
+			const normalized = normalizeThemeId(appearanceId);
+			if (!normalized) return;
+			try {
+				if (window.localStorage) {
+					window.localStorage.setItem(appearanceStorageKey, normalized);
+				}
+			} catch (err) {
+				// localStorage can be unavailable in private or restricted browser contexts.
+			}
+		}
+
 		function getStoredBrandId() {
 			try {
 				return normalizeThemeId(window.localStorage && window.localStorage.getItem(brandStorageKey));
@@ -261,67 +284,424 @@
 			}
 		}
 
+		function normalizeThemeAppearance(value) {
+			const normalized = normalizeThemeId(value);
+			return normalized === 'dark' ? 'dark' : 'light';
+		}
+
+		function getThemeAppearanceId(appearance) {
+			if (!appearance) return null;
+			const id = normalizeThemeId(appearance.id || appearance.appearance || appearance.mode);
+			if (id === 'light' || id === 'dark') return id;
+			return null;
+		}
+
+		function getThemeAppearances(theme) {
+			if (!theme || !theme.appearances) return [];
+			function hasAppearanceContent(appearance) {
+				return !!appearance && (
+					Array.isArray(appearance.colours) && appearance.colours.length
+					|| Array.isArray(appearance.logos) && appearance.logos.length
+					|| Array.isArray(appearance.fonts) && appearance.fonts.length
+					|| Array.isArray(appearance.icons) && appearance.icons.length
+					|| Array.isArray(appearance.iconComparison) && appearance.iconComparison.length
+					|| Array.isArray(appearance.iconComparisons) && appearance.iconComparisons.length
+				);
+			}
+			if (Array.isArray(theme.appearances)) {
+				return theme.appearances.reduce((acc, appearance) => {
+					if (!appearance) return acc;
+					const id = getThemeAppearanceId(appearance);
+					const colours = Array.isArray(appearance.colours) ? appearance.colours : [];
+					if (!id || !hasAppearanceContent(appearance)) return acc;
+					acc.push(Object.assign({}, appearance, {
+						id,
+						appearance: id,
+						colours
+					}));
+					return acc;
+				}, []);
+			}
+			return ['light', 'dark'].reduce((acc, id) => {
+				const appearance = theme.appearances[id];
+				if (!appearance) return acc;
+				const colours = Array.isArray(appearance.colours) ? appearance.colours : [];
+				if (!hasAppearanceContent(appearance)) return acc;
+				acc.push(Object.assign({}, appearance, {
+					id,
+					appearance: id,
+					colours
+				}));
+				return acc;
+			}, []);
+		}
+
 		function getBrandThemes(brand) {
 			if (!brand || !Array.isArray(brand.themes)) return [];
 			return brand.themes.reduce((acc, theme) => {
 				if (!theme) return acc;
 				const themeId = normalizeThemeId(theme.id);
 				const colours = Array.isArray(theme.colours) ? theme.colours : [];
-				if (!themeId || !colours.length) return acc;
-				acc.push(Object.assign({}, theme, { id: themeId, colours }));
+				const logos = Array.isArray(theme.logos) ? theme.logos : [];
+				const fonts = Array.isArray(theme.fonts) ? theme.fonts : [];
+				const icons = Array.isArray(theme.icons) ? theme.icons : [];
+				const appearances = getThemeAppearances(theme);
+				if (!themeId || !colours.length && !logos.length && !fonts.length && !icons.length && !appearances.length) return acc;
+				const normalizedTheme = Object.assign({}, theme, {
+					id: themeId,
+					colours,
+					logos,
+					fonts,
+					icons,
+					appearances
+				});
+				acc.push(normalizedTheme);
 				return acc;
 			}, []);
 		}
 
-		function pickThemeId(themes, candidates) {
+		function getPaletteColourId(colour) {
+			if (!colour || colour.id === undefined || colour.id === null) return null;
+			const id = Number(colour.id);
+			return Number.isFinite(id) ? id : null;
+		}
+
+		function getThemeColourReferenceId(reference) {
+			if (reference === null || reference === undefined) return null;
+			const id = Number(reference);
+			return Number.isFinite(id) ? id : null;
+		}
+
+		function buildPaletteColourIndex(brand) {
+			const index = {};
+			getFlatBrandColours(brand).forEach(colour => {
+				const id = getPaletteColourId(colour);
+				if (id !== null && index[id] === undefined) {
+					index[id] = colour;
+				}
+			});
+			return index;
+		}
+
+		function getReferencedSourceId(item) {
+			if (!item) return null;
+			const value = item.id !== undefined ? item.id
+				: (item.font !== undefined ? item.font
+					: (item.logo !== undefined ? item.logo
+						: (item.icon !== undefined ? item.icon
+							: (item.ref !== undefined ? item.ref : item.row))));
+			if (value === null || value === undefined || value === '') return null;
+			const id = Number(value);
+			return Number.isFinite(id) ? id : normalizeThemeId(value);
+		}
+
+		function getSourceRowId(row, fallbackIndex) {
+			if (!row) return null;
+			const value = row.id !== undefined ? row.id : row.key;
+			if (value !== null && value !== undefined && value !== '') {
+				const id = Number(value);
+				return Number.isFinite(id) ? id : normalizeThemeId(value);
+			}
+			return fallbackIndex + 1;
+		}
+
+		function resolveColourValue(brand, value) {
+			if (!value) return '';
+			const paletteIndex = buildPaletteColourIndex(brand);
+			const numericId = Number(value);
+			if (Number.isFinite(numericId) && paletteIndex[numericId]) return paletteIndex[numericId].hex;
+			const text = String(value);
+			const brandColourMatch = getFlatBrandColours(brand).find(colour => colour && (colour.name === text || colour.hex === text));
+			return brandColourMatch ? brandColourMatch.hex : text;
+		}
+
+		function warnMissingThemeColour(theme, reference, appearanceId) {
+			if (window.console && typeof window.console.warn === 'function') {
+				console.warn('Brand theme colour reference was not found in the main palette.', {
+					theme: theme && theme.id,
+					appearance: appearanceId || null,
+					reference
+				});
+			}
+		}
+
+		function resolveThemeColourSource(brand, theme, appearance) {
+			const paletteIndex = buildPaletteColourIndex(brand);
+			const source = Array.isArray(appearance && appearance.colours)
+				? appearance.colours
+				: (Array.isArray(theme && theme.colours) ? theme.colours : []);
+			const defaultCategory = normalizeIconName(brand.coloursLabel || brand.colourCategory || brand.colourGroup || 'Colours');
+
+			return source.reduce((groups, item) => {
+				if (!item) return groups;
+				const parentCategory = normalizeIconName(item.category || item.location || item.group || item.label || defaultCategory);
+				const references = Array.isArray(item.rows) ? item.rows
+					: (Array.isArray(item.items) ? item.items
+						: (Array.isArray(item.colours) ? item.colours : []));
+				if (!references.length) return groups;
+
+				const rows = references.reduce((acc, reference) => {
+					const id = getThemeColourReferenceId(reference);
+					const colour = id !== null ? paletteIndex[id] : null;
+					if (!colour) {
+						warnMissingThemeColour(theme, reference, appearance && appearance.id);
+						return acc;
+					}
+					acc.push(colour);
+					return acc;
+				}, []);
+				if (rows.length) {
+					groups.push({
+						category: parentCategory,
+						rows,
+						__themeResolved: true,
+						__sourceRows: references,
+						__sourceCategoryItem: item,
+						__sourceRootRows: source
+					});
+				}
+				return groups;
+			}, []);
+		}
+
+		function getFlatSourceRows(source, childKey) {
+			const rows = [];
+			if (!Array.isArray(source)) return rows;
+			source.forEach(item => {
+				if (!item) return;
+				const children = item.rows || item.items || item[childKey];
+				if (Array.isArray(children)) {
+					children.forEach(child => rows.push(child));
+					return;
+				}
+				rows.push(item);
+			});
+			return rows;
+		}
+
+		function buildSourceRowIndex(source, childKey) {
+			const index = {};
+			getFlatSourceRows(source, childKey).forEach((row, rowIndex) => {
+				const id = getSourceRowId(row, rowIndex);
+				if (id !== null && index[id] === undefined) {
+					index[id] = row;
+				}
+			});
+			return index;
+		}
+
+		function getThemeReferenceRows(source, childKey) {
+			if (!Array.isArray(source)) return [];
+			return source.reduce((groups, item) => {
+				if (!item) return groups;
+				const children = item.rows || item.items || item[childKey];
+				if (Array.isArray(children)) {
+					groups.push({
+						category: normalizeIconName(item.category || item.location || item.group || item.label || item.name || (childKey === 'fonts' ? 'Typography' : 'Icons')),
+						rows: children,
+						sourceCategoryItem: item,
+						sourceRootRows: source
+					});
+					return groups;
+				}
+				groups.push({
+					category: normalizeIconName(item.category || item.location || item.group || (childKey === 'fonts' ? 'Typography' : 'Icons')),
+					rows: [item],
+					sourceCategoryItem: null,
+					sourceRootRows: source
+				});
+				return groups;
+			}, []);
+		}
+
+		function resolveThemeFontSource(brand, theme, appearance) {
+			const referenceSource = Array.isArray(appearance && appearance.fonts)
+				? appearance.fonts
+				: (Array.isArray(theme && theme.fonts) ? theme.fonts : null);
+			if (!referenceSource) return null;
+			const fontIndex = buildSourceRowIndex(brand && brand.fonts, 'fonts');
+			return getThemeReferenceRows(referenceSource, 'fonts').reduce((groups, group) => {
+				const rows = group.rows.reduce((acc, reference) => {
+					const id = getReferencedSourceId(reference);
+					const font = id !== null ? fontIndex[id] : null;
+					if (!font) return acc;
+					acc.push(Object.assign({}, font, {
+						__sourceFont: font,
+						__themeStyle: reference
+					}));
+					return acc;
+				}, []);
+				if (rows.length) {
+					groups.push({
+						category: group.category,
+						rows,
+						__themeResolved: true,
+						__sourceRows: group.rows,
+						__sourceCategoryItem: group.sourceCategoryItem,
+						__sourceRootRows: group.sourceRootRows
+					});
+				}
+				return groups;
+			}, []);
+		}
+
+		function resolveThemeLogoSource(brand, theme, appearance) {
+			const referenceSource = Array.isArray(appearance && appearance.logos)
+				? appearance.logos
+				: (Array.isArray(theme && theme.logos) ? theme.logos : null);
+			if (!referenceSource) return null;
+			const logoIndex = buildSourceRowIndex(brand && brand.logos, 'logos');
+			return referenceSource.reduce((acc, reference) => {
+				const id = getReferencedSourceId(reference);
+				const logo = id !== null ? logoIndex[id] : null;
+				if (logo) {
+					acc.push(Object.assign({}, logo, {
+						__sourceLogo: logo,
+						__themeRef: reference
+					}));
+				}
+				return acc;
+			}, []);
+		}
+
+		function resolveThemeIconSource(brand, theme, appearance) {
+			const referenceSource = Array.isArray(appearance && appearance.icons)
+				? appearance.icons
+				: (Array.isArray(theme && theme.icons) ? theme.icons : null);
+			if (!referenceSource) return null;
+			const source = brand && (brand.icons || brand.iconComparison || brand.iconComparisons);
+			const iconIndex = buildSourceRowIndex(source, 'icons');
+			return getThemeReferenceRows(referenceSource, 'icons').reduce((groups, group) => {
+				const rows = group.rows.reduce((acc, reference) => {
+					const id = getReferencedSourceId(reference);
+					const icon = id !== null ? iconIndex[id] : null;
+					if (icon) {
+						acc.push(Object.assign({}, icon, {
+							variants: icon.variants,
+							__sourceIcon: icon,
+							__themeRef: reference
+						}));
+					}
+					return acc;
+				}, []);
+				if (rows.length) {
+					groups.push({
+						category: group.category,
+						rows,
+						__themeResolved: true,
+						__sourceRows: group.rows,
+						__sourceCategoryItem: group.sourceCategoryItem,
+						__sourceRootRows: group.sourceRootRows
+					});
+				}
+				return groups;
+			}, []);
+		}
+
+		function themeHasAppearance(theme, appearanceId) {
+			const normalizedId = normalizeThemeId(appearanceId);
+			const appearances = Array.isArray(theme && theme.appearances) ? theme.appearances : [];
+			return !!normalizedId && appearances.some(appearance => appearance && appearance.id === normalizedId);
+		}
+
+		function pickThemeId(themes, candidates, appearanceCandidates) {
 			if (!Array.isArray(themes) || !themes.length) return null;
 			const list = Array.isArray(candidates) ? candidates : [candidates];
+			const requestedAppearances = (Array.isArray(appearanceCandidates) ? appearanceCandidates : [appearanceCandidates])
+				.map(normalizeThemeId)
+				.filter(Boolean);
 			const seen = new Set();
 			for (let i = 0; i < list.length; i += 1) {
 				const candidate = normalizeThemeId(list[i]);
 				if (!candidate || seen.has(candidate)) continue;
 				seen.add(candidate);
 				const match = themes.find(theme => theme.id === candidate);
+				if (match) {
+					if (!requestedAppearances.length || requestedAppearances.some(appearanceId => themeHasAppearance(match, appearanceId))) {
+						return match.id;
+					}
+				}
+			}
+			for (let i = 0; i < requestedAppearances.length; i += 1) {
+				const match = themes.find(theme => themeHasAppearance(theme, requestedAppearances[i]));
 				if (match) return match.id;
 			}
 			return themes[0].id;
 		}
 
-		function buildBrandForTheme(brand, themeId, themes) {
+		function pickAppearanceId(theme, candidates, brand) {
+			const appearances = Array.isArray(theme && theme.appearances) ? theme.appearances : [];
+			if (!appearances.length) return null;
+			const list = Array.isArray(candidates) ? candidates : [candidates];
+			const seen = new Set();
+			for (let i = 0; i < list.length; i += 1) {
+				const candidate = normalizeThemeId(list[i]);
+				if (!candidate || seen.has(candidate)) continue;
+				seen.add(candidate);
+				const match = appearances.find(appearance => appearance.id === candidate);
+				if (match) return match.id;
+			}
+			const defaultAppearance = normalizeThemeId((theme && theme.defaultAppearance) || (brand && brand.defaultAppearance));
+			if (defaultAppearance) {
+				const match = appearances.find(appearance => appearance.id === defaultAppearance);
+				if (match) return match.id;
+			}
+			return appearances[0].id;
+		}
+
+		function getThemeById(themes, themeId, brand) {
+			const themeList = Array.isArray(themes) ? themes : getBrandThemes(brand);
+			if (!themeList.length) return null;
+			const normalizedId = normalizeThemeId(themeId);
+			const defaultThemeId = normalizeThemeId(brand && brand.defaultTheme);
+			return themeList.find(t => t.id === normalizedId)
+				|| (defaultThemeId ? themeList.find(t => t.id === defaultThemeId) : null)
+				|| themeList[0];
+		}
+
+		function getAppearanceById(theme, appearanceId) {
+			const appearances = Array.isArray(theme && theme.appearances) ? theme.appearances : [];
+			const normalizedId = normalizeThemeId(appearanceId);
+			return appearances.find(appearance => appearance.id === normalizedId) || null;
+		}
+
+		function buildBrandForTheme(brand, themeId, appearanceId, themes) {
 			if (!brand) return null;
 			const themeList = Array.isArray(themes) ? themes : getBrandThemes(brand);
 			if (!themeList.length) return brand;
-			const normalizedId = normalizeThemeId(themeId);
-			const defaultThemeId = normalizeThemeId(brand && brand.defaultTheme);
-			const theme = themeList.find(t => t.id === normalizedId)
-				|| (defaultThemeId ? themeList.find(t => t.id === defaultThemeId) : null)
-				|| themeList[0];
+			const theme = getThemeById(themeList, themeId, brand);
 			if (!theme) return brand;
-			const sourceColours = Array.isArray(theme.colours) && theme.colours.length
-				? theme.colours
-				: (Array.isArray(brand.colours) ? brand.colours : []);
+			const resolvedAppearanceId = pickAppearanceId(theme, [appearanceId], brand);
+			const appearance = getAppearanceById(theme, resolvedAppearanceId);
 			const clone = Object.assign({}, brand);
-			clone.colours = sourceColours;
+			const resolvedColours = resolveThemeColourSource(brand, theme, appearance);
+			clone.colours = resolvedColours.length ? resolvedColours : brand.colours;
+			const resolvedLogos = resolveThemeLogoSource(brand, theme, appearance);
+			if (resolvedLogos) {
+				clone.logos = resolvedLogos;
+			}
+			const resolvedFonts = resolveThemeFontSource(brand, theme, appearance);
+			if (resolvedFonts) {
+				clone.fonts = resolvedFonts;
+			}
+			const resolvedIcons = resolveThemeIconSource(brand, theme, appearance);
+			if (resolvedIcons) {
+				clone.icons = resolvedIcons;
+			}
 			clone.activeTheme = theme.id;
 			clone.activeThemeLabel = theme.label || theme.name || theme.id;
+			clone.activeAppearance = appearance ? appearance.id : null;
+			clone.activeAppearanceLabel = appearance ? (appearance.label || appearance.name || appearance.id) : null;
 			return clone;
 		}
 
-		function supportsBinaryThemeToggle(themes) {
-			if (!Array.isArray(themes) || themes.length < 2) return false;
-			let hasLight = false;
-			let hasDark = false;
-			themes.forEach((theme) => {
-				const id = normalizeThemeId(theme && theme.id);
-				if (id === 'light') hasLight = true;
-				if (id === 'dark') hasDark = true;
-			});
-			return hasLight && hasDark && themes.length <= 2;
+		function getActiveTheme() {
+			return getThemeById(activeBrandThemes, activeThemeId, activeBrandData);
 		}
 
-		function applyDocumentTheme(themeId) {
+		function applyDocumentTheme(appearanceId) {
 			if (!body) return;
-			const normalized = normalizeThemeId(themeId);
+			const normalized = normalizeThemeAppearance(appearanceId);
 			const themeClass = normalized === 'dark' ? 'theme-dark' : 'theme-light';
 			bodyThemeClasses.forEach(cls => body.classList.remove(cls));
 			body.classList.add(themeClass);
@@ -330,29 +710,47 @@
 
 		function updateThemeToggleUI() {
 			if (!themeToggle) return;
-			if (themeControlMode !== 'toggle') {
-				themeToggle.hidden = true;
+			const activeTheme = getActiveTheme();
+			const appearances = Array.isArray(activeTheme && activeTheme.appearances) ? activeTheme.appearances : [];
+			themeToggle.disabled = false;
+			themeToggle.classList.remove('is-muted', 'is-appearance-hidden');
+			if (!appearances.length) {
+				appearanceControlMode = 'hidden';
+				themeToggle.hidden = false;
+				themeToggle.classList.add('is-appearance-hidden');
 				themeToggle.setAttribute('aria-hidden', 'true');
+				themeToggle.setAttribute('aria-pressed', 'false');
+				themeToggle.setAttribute('aria-label', 'No appearance modes');
+				themeToggle.setAttribute('title', 'No appearance modes');
 				return;
 			}
-			const icon = themeToggle.querySelector('i');
-			const isDark = normalizeThemeId(activeThemeId) === 'dark';
 
-			const nextLabel = isDark ? 'Switch to light theme' : 'Switch to dark theme';
+			const isFrozen = appearances.length === 1;
+			appearanceControlMode = isFrozen ? 'frozen' : 'toggle';
+			if (isFrozen) {
+				themeToggle.disabled = true;
+				themeToggle.classList.add('is-muted');
+			}
+
+			const icon = themeToggle.querySelector('i');
+			const isDark = activeAppearanceId === 'dark';
+
+			const activeLabel = isDark ? 'Dark appearance' : 'Light appearance';
+			const nextLabel = isDark ? 'Switch to light appearance' : 'Switch to dark appearance';
+			const label = isFrozen ? activeLabel : nextLabel;
 			if (icon) {
 				icon.textContent = isDark ? 'dark_mode' : 'light_mode';
 			}
 			themeToggle.hidden = false;
 			themeToggle.setAttribute('aria-hidden', 'false');
 			themeToggle.setAttribute('aria-pressed', isDark ? 'true' : 'false');
-			themeToggle.setAttribute('aria-label', nextLabel);
-			themeToggle.setAttribute('title', nextLabel);
+			themeToggle.setAttribute('aria-label', label);
+			themeToggle.setAttribute('title', label);
 		}
 
 		function updateThemeControls() {
 			if (!themeSelector || !themeSelect) return;
 			const hasThemes = Array.isArray(activeBrandThemes) && activeBrandThemes.length > 0;
-			const useToggle = hasThemes && supportsBinaryThemeToggle(activeBrandThemes);
 
 			if (!hasThemes) {
 				if (themeSelectMenu && typeof themeSelectMenu.destroy === 'function') {
@@ -362,35 +760,12 @@
 				themeSelect.innerHTML = '';
 				themeSelect.value = '';
 				themeSelector.hidden = true;
-				if (themeToggle) {
-					themeToggle.hidden = true;
-					themeToggle.setAttribute('aria-hidden', 'true');
-				}
-				themeControlMode = 'none';
-				return;
-			}
-
-			if (useToggle) {
-				if (themeSelectMenu && typeof themeSelectMenu.destroy === 'function') {
-					themeSelectMenu.destroy();
-					themeSelectMenu = null;
-				}
-				themeSelector.hidden = true;
-				themeControlMode = 'toggle';
-				if (themeToggle) {
-					themeToggle.hidden = false;
-				}
+				activeAppearanceId = null;
 				updateThemeToggleUI();
 				return;
 			}
 
-			themeControlMode = 'dropdown';
 			themeSelector.hidden = false;
-			if (themeToggle) {
-				themeToggle.hidden = true;
-				themeToggle.setAttribute('aria-hidden', 'true');
-			}
-
 			themeSelect.innerHTML = '';
 			activeBrandThemes.forEach(theme => {
 				const option = document.createElement('option');
@@ -399,7 +774,8 @@
 				themeSelect.appendChild(option);
 			});
 
-			activeThemeId = pickThemeId(activeBrandThemes, [activeThemeId]);
+			activeThemeId = pickThemeId(activeBrandThemes, [activeThemeId], [activeAppearanceId]);
+			activeAppearanceId = pickAppearanceId(getActiveTheme(), [activeAppearanceId], activeBrandData);
 			themeSelect.value = activeThemeId || '';
 
 			if (themeSelectMenu && typeof themeSelectMenu.destroy === 'function') {
@@ -421,20 +797,24 @@
 			if (themeSelectMenu && typeof themeSelectMenu.update === 'function') {
 				themeSelectMenu.update();
 			}
+			updateThemeToggleUI();
 		}
 
 		function renderActiveBrand() {
 			if (!activeBrandData) return;
 			let targetBrand = activeBrandData;
 			if (activeBrandThemes.length) {
-				activeThemeId = pickThemeId(activeBrandThemes, [activeThemeId]);
-				targetBrand = buildBrandForTheme(activeBrandData, activeThemeId, activeBrandThemes);
+				activeThemeId = pickThemeId(activeBrandThemes, [activeThemeId], [activeAppearanceId]);
+				const activeTheme = getThemeById(activeBrandThemes, activeThemeId, activeBrandData);
+				activeAppearanceId = pickAppearanceId(activeTheme, [activeAppearanceId], activeBrandData);
+				targetBrand = buildBrandForTheme(activeBrandData, activeThemeId, activeAppearanceId, activeBrandThemes);
 			}
 			activeThemeId = normalizeThemeId((targetBrand && targetBrand.activeTheme) || activeThemeId);
+			activeAppearanceId = normalizeThemeId(targetBrand && targetBrand.activeAppearance);
 			renderBrand(targetBrand);
-			applyDocumentTheme(activeThemeId);
+			applyDocumentTheme(activeAppearanceId);
 			updateThemeToggleUI();
-			if (themeControlMode === 'dropdown' && themeSelect && activeBrandThemes.length) {
+			if (themeSelect && activeBrandThemes.length) {
 				if (themeSelect.value !== (activeThemeId || '')) {
 					themeSelect.value = activeThemeId || '';
 				}
@@ -447,14 +827,21 @@
 		function getActiveColourSource() {
 			if (!activeBrandData) return null;
 			if (activeBrandThemes.length && activeThemeId) {
-				const theme = activeBrandThemes.find(item => item.id === activeThemeId);
-				if (theme && Array.isArray(theme.colours)) return theme.colours;
+				const themedBrand = buildBrandForTheme(activeBrandData, activeThemeId, activeAppearanceId, activeBrandThemes);
+				if (themedBrand && Array.isArray(themedBrand.colours)) return themedBrand.colours;
 			}
 			return Array.isArray(activeBrandData.colours) ? activeBrandData.colours : null;
 		}
 
 		function getActiveLogoSource() {
-			if (!activeBrandData || !Array.isArray(activeBrandData.logos)) return null;
+			if (!activeBrandData) return null;
+			if (activeBrandThemes.length && activeThemeId) {
+				const activeTheme = getThemeById(activeBrandThemes, activeThemeId, activeBrandData);
+				const activeAppearance = getAppearanceById(activeTheme, activeAppearanceId);
+				if (Array.isArray(activeAppearance && activeAppearance.logos)) return activeAppearance.logos;
+				if (Array.isArray(activeTheme && activeTheme.logos)) return activeTheme.logos;
+			}
+			if (!Array.isArray(activeBrandData.logos)) return null;
 			return activeBrandData.logos;
 		}
 
@@ -469,10 +856,10 @@
 			const groups = [];
 			const standaloneRows = [];
 
-			function addColourRow(acc, colour, sourceRows, parentCategory, sourceCategoryItem, sourceRootRows) {
+			function addColourRow(acc, colour, sourceRows, parentCategory, sourceCategoryItem, sourceRootRows, sourceRef) {
 				if (!hasColourFields(colour)) return;
 				const category = normalizeIconName(parentCategory || colour.category || colour.location || colour.group || defaultCategory);
-				acc.push({ category, colour, sourceRows, sourceCategoryItem, sourceRootRows });
+				acc.push({ category, colour, sourceRows, sourceCategoryItem, sourceRootRows, sourceRef });
 			}
 
 			source.forEach(item => {
@@ -481,14 +868,20 @@
 				const children = item.rows || item.items || item.colours;
 				if (Array.isArray(children)) {
 					const rows = [];
-					children.forEach(child => addColourRow(rows, child, children, parentCategory || defaultCategory, item, source));
+					const sourceRows = item.__sourceRows || children;
+					const sourceCategoryItem = item.__sourceCategoryItem || item;
+					const sourceRootRows = item.__sourceRootRows || source;
+					children.forEach((child, index) => {
+						const sourceRef = item.__themeResolved ? sourceRows[index] : child;
+						addColourRow(rows, child, sourceRows, parentCategory || defaultCategory, sourceCategoryItem, sourceRootRows, sourceRef);
+					});
 					if (rows.length) {
-						groups.push({ category: parentCategory || defaultCategory, rows, sourceCategoryItem: item, sourceRootRows: source });
+						groups.push({ category: parentCategory || defaultCategory, rows, sourceCategoryItem, sourceRootRows });
 					}
 					return;
 				}
 				const itemCategory = normalizeIconName(item.category || item.location || item.group || defaultCategory);
-				addColourRow(standaloneRows, item, source, itemCategory, null, source);
+				addColourRow(standaloneRows, item, source, itemCategory, null, source, item);
 			});
 
 			if (standaloneRows.length) {
@@ -704,17 +1097,14 @@
 			const targetRow = rows[targetIndex];
 			if (!fromRow || !targetRow || fromRow.category !== targetRow.category || !Array.isArray(targetRow.sourceRows)) return;
 			const colours = targetRow.sourceRows;
-			const sourceIndex = colours.indexOf(fromRow.colour);
-			const targetSourceIndex = colours.indexOf(targetRow.colour);
+			const fromRef = fromRow.sourceRef !== undefined ? fromRow.sourceRef : fromRow.colour;
+			const targetRef = targetRow.sourceRef !== undefined ? targetRow.sourceRef : targetRow.colour;
+			const sourceIndex = colours.indexOf(fromRef);
+			const targetSourceIndex = colours.indexOf(targetRef);
 			if (sourceIndex < 0 || targetSourceIndex < 0 || sourceIndex === targetSourceIndex) return;
 			const moved = colours.splice(sourceIndex, 1)[0];
 			const insertIndex = Math.max(0, Math.min(targetSourceIndex, colours.length));
 			colours.splice(insertIndex, 0, moved);
-			rows.forEach((row, index) => {
-				if (row && row.colour) {
-					row.colour.id = index + 1;
-				}
-			});
 			pendingColourRowPositions = getColourRowPositions();
 			renderActiveBrand();
 		}
@@ -794,15 +1184,18 @@
 		function setActiveBrand(brand, id) {
 			const previousBrandId = activeBrandId;
 			const previousThemeId = activeThemeId;
+			const previousAppearanceId = activeAppearanceId;
 			activeBrandId = id || null;
 			activeBrandData = brand || null;
 			activeBrandThemes = getBrandThemes(brand);
+			activeAppearanceId = null;
 			updateSaveJsonButton();
 			if (activeBrandId) {
 				storeBrandId(activeBrandId);
 			}
 			const defaultThemeId = normalizeThemeId(brand && brand.defaultTheme);
 			const storedThemeId = getStoredThemeId();
+			const storedAppearanceId = getStoredAppearanceId();
 
 			const candidates = [];
 			if (id && id === previousBrandId && previousThemeId) {
@@ -815,7 +1208,16 @@
 				candidates.push(defaultThemeId);
 			}
 
-			activeThemeId = pickThemeId(activeBrandThemes, candidates);
+			activeThemeId = pickThemeId(activeBrandThemes, candidates, [storedAppearanceId, brand && brand.defaultAppearance]);
+			const activeTheme = getThemeById(activeBrandThemes, activeThemeId, brand);
+			const appearanceCandidates = [];
+			if (id && id === previousBrandId && previousAppearanceId) {
+				appearanceCandidates.push(previousAppearanceId);
+			}
+			if (storedAppearanceId) {
+				appearanceCandidates.push(storedAppearanceId);
+			}
+			activeAppearanceId = pickAppearanceId(activeTheme, appearanceCandidates, brand);
 			updateThemeControls();
 			renderActiveBrand();
 		}
@@ -827,7 +1229,21 @@
 				return;
 			}
 			activeThemeId = resolved;
+			const activeTheme = getThemeById(activeBrandThemes, activeThemeId, activeBrandData);
+			activeAppearanceId = pickAppearanceId(activeTheme, [activeAppearanceId, getStoredAppearanceId()], activeBrandData);
 			storeThemeId(activeThemeId);
+			if (activeAppearanceId) {
+				storeAppearanceId(activeAppearanceId);
+			}
+			renderActiveBrand();
+		}
+
+		function setActiveAppearance(appearanceId) {
+			const activeTheme = getActiveTheme();
+			const resolved = pickAppearanceId(activeTheme, [appearanceId, activeAppearanceId], activeBrandData);
+			if (!resolved || resolved === activeAppearanceId) return;
+			activeAppearanceId = resolved;
+			storeAppearanceId(activeAppearanceId);
 			renderActiveBrand();
 		}
 
@@ -1161,14 +1577,24 @@
 				const currentIndex = item.currentIndex === undefined || item.currentIndex === null
 					? (firstActiveVariant ? firstActiveVariant.index : '')
 					: item.currentIndex;
-				acc.push({ label, category, currentIndex, variants, sourceRow: item, sourceRows, sourceCategoryItem, sourceRootRows });
+				acc.push({
+					label,
+					category,
+					currentIndex,
+					variants,
+					sourceRow: item.__sourceIcon || item,
+					sourceRef: item.__themeRef || item,
+					sourceRows,
+					sourceCategoryItem,
+					sourceRootRows
+				});
 			}
 			return source.reduce((acc, item) => {
 				if (!item) return acc;
 				const parentCategory = normalizeIconName(item.category || item.location || item.group);
 				const children = item.rows || item.items || item.icons;
 				if (Array.isArray(children)) {
-					children.forEach(child => addIconRow(acc, child, parentCategory, children, item, source));
+					children.forEach(child => addIconRow(acc, child, parentCategory, item.__sourceRows || children, item.__sourceCategoryItem || item, item.__sourceRootRows || source));
 					return acc;
 				}
 				addIconRow(acc, item, parentCategory, source, null, source);
@@ -1176,8 +1602,17 @@
 			}, []);
 		}
 
-		function getIconRowKey(category, label) {
-			return `${category}::${label}`;
+		function getActiveIconScopeId() {
+			const parts = [
+				normalizeThemeId(activeBrandId) || 'brand',
+				normalizeThemeId(activeThemeId) || 'theme',
+				normalizeThemeId(activeAppearanceId) || 'appearance'
+			];
+			return parts.join('::');
+		}
+
+		function getIconRowKey(category, label, scopeId) {
+			return `${scopeId || getActiveIconScopeId()}::${category}::${label}`;
 		}
 
 		function groupIconRows(rows) {
@@ -1449,16 +1884,18 @@
 			renderActiveBrand();
 		}
 
-		function moveIconRow(fromRowKey, targetRowData) {
+		function moveIconRow(fromPayload, targetRowData) {
+			const fromRowKey = typeof fromPayload === 'string' ? fromPayload : fromPayload && fromPayload.rowKey;
 			if (!fromRowKey || !targetRowData || !Array.isArray(targetRowData.sourceRows)) return;
 			const rows = targetRowData.sourceRows;
 			const targetRowKey = getIconRowKey(targetRowData.category, targetRowData.label);
 			if (fromRowKey === targetRowKey) return;
-			const fromIndex = rows.findIndex(row => row && getIconRowKey(
+			const payloadIndex = typeof fromPayload === 'object' ? Number(fromPayload.sourceIndex) : NaN;
+			const fromIndex = Number.isFinite(payloadIndex) ? payloadIndex : rows.findIndex(row => row && getIconRowKey(
 				normalizeIconName(row.category || row.location || row.group || targetRowData.category || 'Icons'),
 				normalizeIconName(row.label || row.name)
 			) === fromRowKey);
-			const targetIndex = rows.indexOf(targetRowData.sourceRow);
+			const targetIndex = rows.indexOf(targetRowData.sourceRef || targetRowData.sourceRow);
 			if (fromIndex < 0 || targetIndex < 0 || fromIndex === targetIndex) return;
 			const moved = rows.splice(fromIndex, 1)[0];
 			const insertIndex = Math.max(0, Math.min(targetIndex, rows.length));
@@ -1698,8 +2135,9 @@
 			row.addEventListener('dragover', (e) => {
 				clearDragLeaveTimer();
 				const payload = draggedIconRow;
-				const fromIndex = payload ? getIconRowIndex(payload.rowKey, rowData) : -1;
-				const targetIndex = rowData.sourceRows ? rowData.sourceRows.indexOf(rowData.sourceRow) : -1;
+				const payloadIndex = payload ? Number(payload.sourceIndex) : NaN;
+				const fromIndex = Number.isFinite(payloadIndex) ? payloadIndex : (payload ? getIconRowIndex(payload.rowKey, rowData) : -1);
+				const targetIndex = rowData.sourceRows ? rowData.sourceRows.indexOf(rowData.sourceRef || rowData.sourceRow) : -1;
 				if (!payload || payload.rowKey === rowKey || payload.category !== rowData.category || isIneffectiveIconRowDrop(fromIndex, targetIndex)) {
 					row.classList.remove('is-row-drag-target', 'is-row-drop-after');
 					return;
@@ -1725,12 +2163,13 @@
 			});
 			row.addEventListener('drop', (e) => {
 				const payload = getDraggedIconRowPayload(e);
-				const fromIndex = payload ? getIconRowIndex(payload.rowKey, rowData) : -1;
-				const targetIndex = rowData.sourceRows ? rowData.sourceRows.indexOf(rowData.sourceRow) : -1;
+				const payloadIndex = payload ? Number(payload.sourceIndex) : NaN;
+				const fromIndex = Number.isFinite(payloadIndex) ? payloadIndex : (payload ? getIconRowIndex(payload.rowKey, rowData) : -1);
+				const targetIndex = rowData.sourceRows ? rowData.sourceRows.indexOf(rowData.sourceRef || rowData.sourceRow) : -1;
 				if (!payload || payload.rowKey === rowKey || payload.category !== rowData.category || isIneffectiveIconRowDrop(fromIndex, targetIndex)) return;
 				e.preventDefault();
 				clearIconRowDragState();
-				moveIconRow(payload.rowKey, rowData);
+				moveIconRow(payload, rowData);
 			});
 		}
 
@@ -2153,7 +2592,8 @@
 					dragHandle.addEventListener('dragstart', (e) => {
 						draggedIconRow = {
 							rowKey,
-							category: group.category
+							category: group.category,
+							sourceIndex: Array.isArray(rowData.sourceRows) ? rowData.sourceRows.indexOf(rowData.sourceRef || rowData.sourceRow) : -1
 						};
 						row.classList.add('is-row-dragging');
 						if (e.dataTransfer) {
@@ -2204,7 +2644,16 @@
 				const hasFontFields = font.family !== undefined || font.sampleText !== undefined || font.weight !== undefined || font.usage !== undefined || font.color !== undefined;
 				if (!hasFontFields && (Array.isArray(font.rows) || Array.isArray(font.items) || Array.isArray(font.fonts))) return;
 				const category = normalizeIconName(parentCategory || font.category || font.location || font.group || defaultCategory);
-				acc.push({ category, font, sourceRows, sourceCategoryItem, sourceRootRows });
+				acc.push({
+					category,
+					font,
+					sourceFont: font.__sourceFont || font,
+					themeStyle: font.__themeStyle || null,
+					sourceRef: font.__themeStyle || font,
+					sourceRows,
+					sourceCategoryItem,
+					sourceRootRows
+				});
 			}
 
 			source.forEach(item => {
@@ -2213,9 +2662,14 @@
 				const children = item.rows || item.items || item.fonts;
 				if (Array.isArray(children)) {
 					const rows = [];
-					children.forEach(child => addFontRow(rows, child, children, item, parentCategory || defaultCategory, source));
+					children.forEach(child => addFontRow(rows, child, item.__sourceRows || children, item.__sourceCategoryItem || item, parentCategory || defaultCategory, item.__sourceRootRows || source));
 					if (rows.length) {
-						groups.push({ category: parentCategory || defaultCategory, rows, sourceCategoryItem: item, sourceRootRows: source });
+						groups.push({
+							category: parentCategory || defaultCategory,
+							rows,
+							sourceCategoryItem: item.__sourceCategoryItem || item,
+							sourceRootRows: item.__sourceRootRows || source
+						});
 					}
 					return;
 				}
@@ -2349,11 +2803,13 @@
 			});
 		}
 
-		function moveFontSample(fromFontKey, targetRowData) {
+		function moveFontSample(fromPayload, targetRowData) {
+			const fromFontKey = typeof fromPayload === 'string' ? fromPayload : fromPayload && fromPayload.fontKey;
 			if (!fromFontKey || !targetRowData || !Array.isArray(targetRowData.sourceRows)) return;
 			const rows = targetRowData.sourceRows;
-			const targetIndex = rows.indexOf(targetRowData.font);
-			const fromIndex = getFontSampleIndex(fromFontKey, targetRowData);
+			const targetIndex = rows.indexOf(targetRowData.sourceRef || targetRowData.font);
+			const payloadIndex = typeof fromPayload === 'object' ? Number(fromPayload.sourceIndex) : NaN;
+			const fromIndex = Number.isFinite(payloadIndex) ? payloadIndex : getFontSampleIndex(fromFontKey, targetRowData);
 			if (fromIndex < 0 || targetIndex < 0 || fromIndex === targetIndex) return;
 			const moved = rows.splice(fromIndex, 1)[0];
 			const insertIndex = Math.max(0, Math.min(targetIndex, rows.length));
@@ -2377,7 +2833,8 @@
 			handle.addEventListener('dragstart', (e) => {
 				draggedFontSample = {
 					fontKey,
-					category: rowData.category
+					category: rowData.category,
+					sourceIndex: Array.isArray(rowData.sourceRows) ? rowData.sourceRows.indexOf(rowData.sourceRef || rowData.font) : -1
 				};
 				sample.classList.add('is-font-dragging');
 				if (e.dataTransfer) {
@@ -2392,8 +2849,9 @@
 			sample.addEventListener('dragover', (e) => {
 				clearDragLeaveTimer();
 				const payload = draggedFontSample;
-				const fromIndex = payload ? getFontSampleIndex(payload.fontKey, rowData) : -1;
-				const targetIndex = rowData.sourceRows ? rowData.sourceRows.indexOf(rowData.font) : -1;
+				const payloadIndex = payload ? Number(payload.sourceIndex) : NaN;
+				const fromIndex = Number.isFinite(payloadIndex) ? payloadIndex : (payload ? getFontSampleIndex(payload.fontKey, rowData) : -1);
+				const targetIndex = rowData.sourceRows ? rowData.sourceRows.indexOf(rowData.sourceRef || rowData.font) : -1;
 				if (!payload || payload.category !== rowData.category || isIneffectiveFontDrop(fromIndex, targetIndex)) {
 					sample.classList.remove('is-font-drag-target', 'is-row-drop-after');
 					return;
@@ -2419,12 +2877,13 @@
 			});
 			sample.addEventListener('drop', (e) => {
 				const payload = getDraggedFontPayload(e);
-				const fromIndex = payload ? getFontSampleIndex(payload.fontKey, rowData) : -1;
-				const targetIndex = rowData.sourceRows ? rowData.sourceRows.indexOf(rowData.font) : -1;
+				const payloadIndex = payload ? Number(payload.sourceIndex) : NaN;
+				const fromIndex = Number.isFinite(payloadIndex) ? payloadIndex : (payload ? getFontSampleIndex(payload.fontKey, rowData) : -1);
+				const targetIndex = rowData.sourceRows ? rowData.sourceRows.indexOf(rowData.sourceRef || rowData.font) : -1;
 				if (!payload || payload.category !== rowData.category || isIneffectiveFontDrop(fromIndex, targetIndex)) return;
 				e.preventDefault();
 				clearFontSampleDragState();
-				moveFontSample(payload.fontKey, rowData);
+				moveFontSample(payload, rowData);
 			});
 		}
 
@@ -2589,26 +3048,28 @@
 				bindFontGroupDrag(section, dragHandle, group);
 
 				group.rows.forEach(rowData => {
-				const font = rowData.font;
-				const index = fontSerial;
-				fontSerial += 1;
-				const baseFontKey = getFontKey(group.category, font, 0);
-				fontKeyCounts[baseFontKey] = (fontKeyCounts[baseFontKey] || 0) + 1;
-				const fontKey = getFontKey(group.category, font, fontKeyCounts[baseFontKey]);
-				const sampleText = font.sampleText || 'Lorem ipsum dolor sit amet, consectetur adipiscing elit';
-				let color = font.color;
-				const brandColourMatch = brandColours.find(c => c.name === color);
-				if (brandColourMatch) {
-					color = brandColourMatch.hex;
-				}
-				if (!color) {
-					color = brandColours.length ? brandColours[0].hex : '#1f2937';
-				}
+					const font = rowData.font;
+					const sourceFont = rowData.sourceFont || font;
+					const themeStyle = rowData.themeStyle || null;
+					const index = fontSerial;
+					fontSerial += 1;
+					const baseFontKey = getFontKey(group.category, font, 0);
+					fontKeyCounts[baseFontKey] = (fontKeyCounts[baseFontKey] || 0) + 1;
+					const fontKey = getFontKey(group.category, font, fontKeyCounts[baseFontKey]);
+					const sampleText = font.sampleText || 'Lorem ipsum dolor sit amet, consectetur adipiscing elit';
+					let color = resolveColourValue(brand, themeStyle && (themeStyle.textColour || themeStyle.textColor || themeStyle.colour || themeStyle.color) || font.color);
+					if (!color) {
+						color = brandColours.length ? brandColours[0].hex : '#1f2937';
+					}
+					const backgroundColor = resolveColourValue(brand, themeStyle && (themeStyle.backgroundColour || themeStyle.backgroundColor || themeStyle.background)) || '';
 
 				const fontSampleDiv = document.createElement('div');
 				fontSampleDiv.classList.add('font-sample');
 				fontSampleDiv.dataset.fontKey = fontKey;
 				fontSampleDiv.style.setProperty('--font-sample-color', color);
+				if (backgroundColor) {
+					fontSampleDiv.style.setProperty('--font-sample-background-color', backgroundColor);
+				}
 				if (typeof window.fontSampleTemplate !== 'function') {
 					console.error('fontSampleTemplate component is not available.');
 					fontSampleDiv.innerHTML = '';
@@ -2626,6 +3087,9 @@
 
 				const fontCard = fontSampleDiv.querySelector('.font-card');
 				if (fontCard) {
+					if (backgroundColor) {
+						fontCard.style.backgroundColor = backgroundColor;
+					}
 					const actions = document.createElement('div');
 					actions.className = 'font-sample-actions';
 					const dragHandle = document.createElement('button');
@@ -2743,7 +3207,15 @@
 
 				function applyColorValue(nextColor) {
 					if (!nextColor) return;
-					font.color = nextColor;
+					if (themeStyle) {
+						themeStyle.textColour = nextColor;
+						if (themeStyle.color !== undefined) {
+							delete themeStyle.color;
+						}
+						if (themeStyle.colour !== undefined) {
+							delete themeStyle.colour;
+						}
+					}
 					fontSampleDiv.style.setProperty('--font-sample-color', nextColor);
 					if (fontSampleText) {
 						fontSampleText.style.color = nextColor;
@@ -2798,9 +3270,11 @@
 
 				if (fontSampleText) {
 					fontSampleText.addEventListener('input', () => {
+						sourceFont.sampleText = fontSampleText.textContent;
 						font.sampleText = fontSampleText.textContent;
 					});
 					fontSampleText.addEventListener('blur', () => {
+						sourceFont.sampleText = fontSampleText.textContent;
 						font.sampleText = fontSampleText.textContent;
 					});
 				}
@@ -2882,6 +3356,7 @@
 					const rawValue = fontFamilyInput.value;
 					const nextValue = rawValue && rawValue.trim() ? rawValue.trim() : committedFontFamily;
 					committedFontFamily = nextValue;
+					sourceFont.family = committedFontFamily;
 					font.family = committedFontFamily;
 					fontFamilyInput.value = committedFontFamily;
 					fontFamilyName.style.display = 'inline-block';
@@ -3278,10 +3753,9 @@
 
 		if (themeToggle) {
 			themeToggle.addEventListener('click', () => {
-				if (themeControlMode !== 'toggle') return;
-				const current = normalizeThemeId(activeThemeId);
-				const next = current === 'dark' ? 'light' : 'dark';
-				setActiveTheme(next);
+				if (appearanceControlMode !== 'toggle') return;
+				const nextAppearance = activeAppearanceId === 'dark' ? 'light' : 'dark';
+				setActiveAppearance(nextAppearance);
 			});
 		}
 

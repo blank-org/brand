@@ -9,7 +9,7 @@
 
 ## Colour Reference
 - Displays brand colours in a table with colour code, visual swatch, and remark fields.
-- Supports flat colour arrays and grouped colour sections with `category` plus `rows`, `items`, or `colours`.
+- Supports a canonical brand palette as flat colour arrays or grouped colour sections with `category` plus `rows`, `items`, or `colours`.
 - Shows editable colour group titles and lets backed grouped sections be reordered.
 - Supports optional serial numbers through `showSerialNumbers`.
 - Copies a colour hex value when a colour row control is clicked.
@@ -19,14 +19,21 @@
 
 ## Theme Support
 - Supports optional brand themes through a `themes` array in brand data.
-- Uses a light/dark toggle when the brand has only `light` and `dark` themes.
-- Uses a theme dropdown when a brand exposes multiple named themes.
-- Applies `theme-light` or `theme-dark` body classes based on the active theme.
+- Resolves theme and appearance colour rows from numeric references into the canonical brand palette.
+- Resolves theme and appearance logo references from the canonical logo list so light and dark appearances can show different logo variants.
+- Resolves theme and appearance typography rows from canonical font references, with appearance-specific colour, text colour, and background colour fields.
+- Resolves theme and appearance icon rows from canonical icon references so each appearance can choose and order icon groups independently.
+- Uses a theme dropdown for named theme families such as `soft` and `sharp`.
+- Uses the appearance button as a light/dark toggle when the selected theme has both appearances.
+- Shows a muted, disabled appearance button when the selected theme has only one appearance.
+- Visually hides the appearance button while keeping its layout space when the selected theme has no appearances.
+- Applies `theme-light` or `theme-dark` body classes based on the active appearance, defaulting to light when no appearance is active.
 - Preserves the selected theme when re-rendering the same brand where possible.
-- Restores the last selected theme from localStorage across page reloads.
+- Restores the last selected theme and appearance from localStorage across page reloads.
 
 ## Logo Files
 - Displays optional brand logo assets from the brand `logos` array.
+- Supports appearance-specific logo references while keeping canonical logo file data in the top-level `logos` array.
 - Shows logo previews, names, and supporting metadata such as usage, variant, background, and notes.
 - Links logo cards to files under `data/`.
 - Enables download behavior unless a logo entry sets `download: false`.
@@ -36,10 +43,10 @@
 - Renders font sample sections from each brand's `fonts` array, including optional grouped font sections.
 - Shows each font group label outside the group at the top-right and allows it to be edited inline.
 - Displays editable font family names and applies changes to the sample preview.
-- Saves edited font family, sample text, and colour choices into exported brand data.
+- Saves edited font family and sample text into canonical font data, and saves colour choices into the active theme appearance when font references are used.
 - Supports font weight selection when weights are provided.
 - Supports sample text editing for live preview.
-- Provides colour selection from the brand palette and a native colour picker for custom values.
+- Provides typography colour selection from the active appearance palette and a native colour picker for custom values.
 - Allows Google Font loading for a named font family and tracks loading, synced, and idle states.
 - Allows font samples to be dragged into a new order within the same font group.
 - Shows a hover-only drag handle beside grouped font titles and allows grouped font sections to be reordered when backed by grouped brand data.

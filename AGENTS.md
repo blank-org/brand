@@ -32,7 +32,9 @@
 
 ## Brand Data Workflow
 - To add a brand, create `data/<brandId>.json.js` exporting `window.BRAND` and append the id to `window.BRAND_LIST` in `data/list.json.js`.
-- Ensure each `colours` entry includes `id`, `hex`, `name`, and optional `usage`/`remark`; fonts should provide `name`, `family`, `weight`, and `sampleText`; icon comparison categories should provide `category` and `rows`, with each row providing `label`, `currentIndex`, and `variants` with Lucide icon name strings.
+- Ensure each main palette `colours` entry includes `id`, `hex`, `name`, and optional `usage`/`remark`; all colours used by theme appearances must be recorded in this main palette.
+- Define theme families through `themes[]` entries such as `soft` or `sharp`; use `themes[].appearances.light.colours` and/or `themes[].appearances.dark.colours` for appearance-specific palettes, or `themes[].colours` when the theme has no appearance modes. Colour rows in themes and appearances must reference main palette ids only, e.g. `{ category: "Core", rows: [1, 2, 5] }`.
+- Fonts should provide `name`, `family`, `weight`, and `sampleText`; icon comparison categories should provide `category` and `rows`, with each row providing `label`, `currentIndex`, and `variants` with Lucide icon name strings.
 - Keep new assets under `resource/` and update CSS only when a brand needs bespoke styling.
 
 ## Commit & Pull Request Guidelines

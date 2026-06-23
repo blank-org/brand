@@ -410,6 +410,16 @@ table.sections,
 	background: transparent;
 }
 
+.icon-toggle.is-muted {
+	border-color: var(--surface-border);
+	background: var(--control-bg);
+}
+
+.icon-toggle.is-appearance-hidden {
+	visibility: hidden;
+	pointer-events: none;
+}
+
 .icon-toggle:focus-visible {
 	outline: 2px solid var(--icon-color-active);
 	outline-offset: 2px;
